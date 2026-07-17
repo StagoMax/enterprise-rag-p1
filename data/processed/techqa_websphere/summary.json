@@ -1,0 +1,13 @@
+{
+  "source_dataset": "nvidia/TechQA-RAG-Eval",
+  "selection": "WebSphere contexts; answerable records first; 200 unique documents",
+  "documents": 200,
+  "gold_questions": 120,
+  "gold_by_category": {
+    "exact_search": 20,
+    "no_evidence": 10,
+    "rag": 60,
+    "tool": 20,
+    "unauthorized": 10
+  }
+}

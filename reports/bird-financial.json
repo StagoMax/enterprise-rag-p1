@@ -1,0 +1,21 @@
+{
+  "dataset": "BIRD-SQL Mini-Dev",
+  "database": "financial",
+  "license": "CC BY-SA 4.0",
+  "tables": [
+    "account",
+    "card",
+    "client",
+    "disp",
+    "district",
+    "loan",
+    "order",
+    "trans"
+  ],
+  "questions": 32,
+  "successful_executions": 32,
+  "execution_rate": 1.0,
+  "p50_latency_ms": 3.018,
+  "p95_latency_ms": 465.317,
+  "failures": []
+}

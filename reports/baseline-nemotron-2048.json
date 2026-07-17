@@ -1,0 +1,250 @@
+{
+  "backend": "nemotron",
+  "reranker": null,
+  "model": "models\\nemotron-3-embed-1b",
+  "dimensions": 2048,
+  "documents": 200,
+  "questions": 120,
+  "metrics": {
+    "route_accuracy": 1.0,
+    "retrieval_recall_at_3": 0.9,
+    "citation_accuracy": 0.875,
+    "refusal_accuracy": 1.0,
+    "permission_isolation": 1.0,
+    "tool_answer_accuracy": 1.0,
+    "p50_latency_ms": 73.98,
+    "p95_latency_ms": 303.78,
+    "index_seconds": 87.23
+  },
+  "thresholds": {
+    "route_accuracy": 0.9,
+    "retrieval_recall_at_3": 0.85,
+    "citation_accuracy": 0.95,
+    "refusal_accuracy": 0.9,
+    "permission_isolation": 1.0,
+    "tool_answer_accuracy": 0.85
+  },
+  "checks": {
+    "route_accuracy": true,
+    "retrieval_recall_at_3": true,
+    "citation_accuracy": false,
+    "refusal_accuracy": true,
+    "permission_isolation": true,
+    "tool_answer_accuracy": true
+  },
+  "passed": false,
+  "by_category": {
+    "exact_search": {
+      "count": 20,
+      "route_accuracy": 1.0,
+      "evidence_recall": 1.0,
+      "refusal_accuracy": 1.0
+    },
+    "no_evidence": {
+      "count": 10,
+      "route_accuracy": 1.0,
+      "evidence_recall": 1.0,
+      "refusal_accuracy": 1.0
+    },
+    "rag": {
+      "count": 60,
+      "route_accuracy": 1.0,
+      "evidence_recall": 0.8667,
+      "refusal_accuracy": 1.0
+    },
+    "tool": {
+      "count": 20,
+      "route_accuracy": 1.0,
+      "evidence_recall": 1.0,
+      "refusal_accuracy": 1.0
+    },
+    "unauthorized": {
+      "count": 10,
+      "route_accuracy": 1.0,
+      "evidence_recall": 1.0,
+      "refusal_accuracy": 1.0
+    }
+  },
+  "failures": [
+    {
+      "id": "rag-005",
+      "category": "rag",
+      "route_correct": true,
+      "refusal_correct": true,
+      "evidence_recalled": false,
+      "citation_accuracy": 0.0,
+      "forbidden_clear": true,
+      "answer_match": true,
+      "latency_ms": 351.654,
+      "actual_route": "rag",
+      "refused": false,
+      "citation_ids": [
+        "swg22009436",
+        "swg22010832",
+        "swg22011696"
+      ]
+    },
+    {
+      "id": "rag-019",
+      "category": "rag",
+      "route_correct": true,
+      "refusal_correct": true,
+      "evidence_recalled": true,
+      "citation_accuracy": 0.0,
+      "forbidden_clear": true,
+      "answer_match": true,
+      "latency_ms": 195.242,
+      "actual_route": "rag",
+      "refused": false,
+      "citation_ids": [
+        "swg21995397",
+        "swg1PI37248",
+        "swg1PI54477"
+      ]
+    },
+    {
+      "id": "rag-026",
+      "category": "rag",
+      "route_correct": true,
+      "refusal_correct": true,
+      "evidence_recalled": false,
+      "citation_accuracy": 0.0,
+      "forbidden_clear": true,
+      "answer_match": true,
+      "latency_ms": 743.915,
+      "actual_route": "rag",
+      "refused": false,
+      "citation_ids": [
+        "swg27020885",
+        "swg27020885",
+        "swg27020885"
+      ]
+    },
+    {
+      "id": "rag-029",
+      "category": "rag",
+      "route_correct": true,
+      "refusal_correct": true,
+      "evidence_recalled": false,
+      "citation_accuracy": 0.0,
+      "forbidden_clear": true,
+      "answer_match": true,
+      "latency_ms": 258.733,
+      "actual_route": "rag",
+      "refused": false,
+      "citation_ids": [
+        "swg21599258",
+        "swg21599258",
+        "swg21599258"
+      ]
+    },
+    {
+      "id": "rag-035",
+      "category": "rag",
+      "route_correct": true,
+      "refusal_correct": true,
+      "evidence_recalled": false,
+      "citation_accuracy": 0.0,
+      "forbidden_clear": true,
+      "answer_match": true,
+      "latency_ms": 149.705,
+      "actual_route": "rag",
+      "refused": false,
+      "citation_ids": [
+        "swg21691034",
+        "swg21691034",
+        "swg21691034"
+      ]
+    },
+    {
+      "id": "rag-045",
+      "category": "rag",
+      "route_correct": true,
+      "refusal_correct": true,
+      "evidence_recalled": false,
+      "citation_accuracy": 0.0,
+      "forbidden_clear": true,
+      "answer_match": true,
+      "latency_ms": 73.978,
+      "actual_route": "rag",
+      "refused": false,
+      "citation_ids": [
+        "swg1PI47826",
+        "swg1PI47826",
+        "swg1PI47826"
+      ]
+    },
+    {
+      "id": "rag-046",
+      "category": "rag",
+      "route_correct": true,
+      "refusal_correct": true,
+      "evidence_recalled": true,
+      "citation_accuracy": 0.0,
+      "forbidden_clear": true,
+      "answer_match": true,
+      "latency_ms": 115.416,
+      "actual_route": "rag",
+      "refused": false,
+      "citation_ids": [
+        "swg21638268",
+        "swg21244384",
+        "swg21638268"
+      ]
+    },
+    {
+      "id": "rag-051",
+      "category": "rag",
+      "route_correct": true,
+      "refusal_correct": true,
+      "evidence_recalled": false,
+      "citation_accuracy": 0.0,
+      "forbidden_clear": true,
+      "answer_match": true,
+      "latency_ms": 179.983,
+      "actual_route": "rag",
+      "refused": false,
+      "citation_ids": [
+        "swg21569953",
+        "swg21569953",
+        "swg21569953"
+      ]
+    },
+    {
+      "id": "rag-054",
+      "category": "rag",
+      "route_correct": true,
+      "refusal_correct": true,
+      "evidence_recalled": false,
+      "citation_accuracy": 0.0,
+      "forbidden_clear": true,
+      "answer_match": true,
+      "latency_ms": 137.928,
+      "actual_route": "rag",
+      "refused": false,
+      "citation_ids": [
+        "swg21681464",
+        "swg21691034",
+        "swg21681464"
+      ]
+    },
+    {
+      "id": "rag-056",
+      "category": "rag",
+      "route_correct": true,
+      "refusal_correct": true,
+      "evidence_recalled": false,
+      "citation_accuracy": 0.0,
+      "forbidden_clear": true,
+      "answer_match": true,
+      "latency_ms": 191.436,
+      "actual_route": "rag",
+      "refused": false,
+      "citation_ids": [
+        "swg21649807",
+        "swg21445430",
+        "swg21649807"
+      ]
+    }
+  ]
+}

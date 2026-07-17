@@ -1,0 +1,319 @@
+{
+  "backend": "hashing",
+  "dense_weight": 0.25,
+  "reranker": null,
+  "model": "hashing-384",
+  "dimensions": 384,
+  "documents": 200,
+  "questions": 120,
+  "metrics": {
+    "route_accuracy": 1.0,
+    "retrieval_recall_at_3": 0.9375,
+    "citation_accuracy": 0.825,
+    "refusal_accuracy": 1.0,
+    "permission_isolation": 1.0,
+    "tool_answer_accuracy": 1.0,
+    "p50_latency_ms": 6.64,
+    "p95_latency_ms": 171.53,
+    "index_seconds": 1.09
+  },
+  "thresholds": {
+    "route_accuracy": 0.9,
+    "retrieval_recall_at_3": 0.85,
+    "citation_accuracy": 0.95,
+    "refusal_accuracy": 0.9,
+    "permission_isolation": 1.0,
+    "tool_answer_accuracy": 0.85
+  },
+  "checks": {
+    "route_accuracy": true,
+    "retrieval_recall_at_3": true,
+    "citation_accuracy": false,
+    "refusal_accuracy": true,
+    "permission_isolation": true,
+    "tool_answer_accuracy": true
+  },
+  "passed": false,
+  "by_category": {
+    "exact_search": {
+      "count": 20,
+      "route_accuracy": 1.0,
+      "evidence_recall": 1.0,
+      "refusal_accuracy": 1.0
+    },
+    "no_evidence": {
+      "count": 10,
+      "route_accuracy": 1.0,
+      "evidence_recall": 1.0,
+      "refusal_accuracy": 1.0
+    },
+    "rag": {
+      "count": 60,
+      "route_accuracy": 1.0,
+      "evidence_recall": 0.9167,
+      "refusal_accuracy": 1.0
+    },
+    "tool": {
+      "count": 20,
+      "route_accuracy": 1.0,
+      "evidence_recall": 1.0,
+      "refusal_accuracy": 1.0
+    },
+    "unauthorized": {
+      "count": 10,
+      "route_accuracy": 1.0,
+      "evidence_recall": 1.0,
+      "refusal_accuracy": 1.0
+    }
+  },
+  "failures": [
+    {
+      "id": "rag-002",
+      "category": "rag",
+      "route_correct": true,
+      "refusal_correct": true,
+      "evidence_recalled": true,
+      "citation_accuracy": 0.0,
+      "forbidden_clear": true,
+      "answer_match": true,
+      "latency_ms": 230.26,
+      "actual_route": "rag",
+      "refused": false,
+      "citation_ids": [
+        "swg21662193",
+        "swg21636093"
+      ]
+    },
+    {
+      "id": "rag-005",
+      "category": "rag",
+      "route_correct": true,
+      "refusal_correct": true,
+      "evidence_recalled": false,
+      "citation_accuracy": 0.0,
+      "forbidden_clear": true,
+      "answer_match": true,
+      "latency_ms": 150.097,
+      "actual_route": "rag",
+      "refused": false,
+      "citation_ids": [
+        "swg22009436",
+        "swg22011696",
+        "swg22010832"
+      ]
+    },
+    {
+      "id": "rag-007",
+      "category": "rag",
+      "route_correct": true,
+      "refusal_correct": true,
+      "evidence_recalled": true,
+      "citation_accuracy": 0.0,
+      "forbidden_clear": true,
+      "answer_match": true,
+      "latency_ms": 163.814,
+      "actual_route": "rag",
+      "refused": false,
+      "citation_ids": [
+        "swg21312967",
+        "swg27019359",
+        "swg27023910"
+      ]
+    },
+    {
+      "id": "rag-009",
+      "category": "rag",
+      "route_correct": true,
+      "refusal_correct": true,
+      "evidence_recalled": true,
+      "citation_accuracy": 0.0,
+      "forbidden_clear": true,
+      "answer_match": true,
+      "latency_ms": 56.225,
+      "actual_route": "rag",
+      "refused": false,
+      "citation_ids": [
+        "swg24042177",
+        "swg24035040",
+        "swg21263677"
+      ]
+    },
+    {
+      "id": "rag-019",
+      "category": "rag",
+      "route_correct": true,
+      "refusal_correct": true,
+      "evidence_recalled": false,
+      "citation_accuracy": 0.0,
+      "forbidden_clear": true,
+      "answer_match": true,
+      "latency_ms": 137.37,
+      "actual_route": "rag",
+      "refused": false,
+      "citation_ids": [
+        "swg21569731",
+        "swg21998655",
+        "swg27042658"
+      ]
+    },
+    {
+      "id": "rag-030",
+      "category": "rag",
+      "route_correct": true,
+      "refusal_correct": true,
+      "evidence_recalled": true,
+      "citation_accuracy": 0.0,
+      "forbidden_clear": true,
+      "answer_match": true,
+      "latency_ms": 87.135,
+      "actual_route": "rag",
+      "refused": false,
+      "citation_ids": [
+        "swg21282614",
+        "swg27050456",
+        "swg21445430"
+      ]
+    },
+    {
+      "id": "rag-033",
+      "category": "rag",
+      "route_correct": true,
+      "refusal_correct": true,
+      "evidence_recalled": true,
+      "citation_accuracy": 0.0,
+      "forbidden_clear": true,
+      "answer_match": true,
+      "latency_ms": 62.11,
+      "actual_route": "rag",
+      "refused": false,
+      "citation_ids": [
+        "swg21701478",
+        "swg21308281",
+        "swg21249798"
+      ]
+    },
+    {
+      "id": "rag-040",
+      "category": "rag",
+      "route_correct": true,
+      "refusal_correct": true,
+      "evidence_recalled": false,
+      "citation_accuracy": 0.0,
+      "forbidden_clear": true,
+      "answer_match": true,
+      "latency_ms": 171.611,
+      "actual_route": "rag",
+      "refused": false,
+      "citation_ids": [
+        "swg24042833",
+        "swg21995397",
+        "swg21681142"
+      ]
+    },
+    {
+      "id": "rag-045",
+      "category": "rag",
+      "route_correct": true,
+      "refusal_correct": true,
+      "evidence_recalled": false,
+      "citation_accuracy": 0.0,
+      "forbidden_clear": true,
+      "answer_match": true,
+      "latency_ms": 10.036,
+      "actual_route": "rag",
+      "refused": false,
+      "citation_ids": [
+        "swg1PI47826",
+        "swg21626683"
+      ]
+    },
+    {
+      "id": "rag-046",
+      "category": "rag",
+      "route_correct": true,
+      "refusal_correct": true,
+      "evidence_recalled": true,
+      "citation_accuracy": 0.0,
+      "forbidden_clear": true,
+      "answer_match": true,
+      "latency_ms": 55.038,
+      "actual_route": "rag",
+      "refused": false,
+      "citation_ids": [
+        "swg21638268",
+        "swg21244384"
+      ]
+    },
+    {
+      "id": "rag-052",
+      "category": "rag",
+      "route_correct": true,
+      "refusal_correct": true,
+      "evidence_recalled": true,
+      "citation_accuracy": 0.0,
+      "forbidden_clear": true,
+      "answer_match": true,
+      "latency_ms": 48.037,
+      "actual_route": "rag",
+      "refused": false,
+      "citation_ids": [
+        "swg27045339",
+        "swg21994741",
+        "swg24042191"
+      ]
+    },
+    {
+      "id": "rag-054",
+      "category": "rag",
+      "route_correct": true,
+      "refusal_correct": true,
+      "evidence_recalled": true,
+      "citation_accuracy": 0.0,
+      "forbidden_clear": true,
+      "answer_match": true,
+      "latency_ms": 54.212,
+      "actual_route": "rag",
+      "refused": false,
+      "citation_ids": [
+        "swg21459952",
+        "swg21445801",
+        "swg21249798"
+      ]
+    },
+    {
+      "id": "rag-056",
+      "category": "rag",
+      "route_correct": true,
+      "refusal_correct": true,
+      "evidence_recalled": false,
+      "citation_accuracy": 0.0,
+      "forbidden_clear": true,
+      "answer_match": true,
+      "latency_ms": 57.745,
+      "actual_route": "rag",
+      "refused": false,
+      "citation_ids": [
+        "swg21649807",
+        "swg21445430",
+        "swg24042177"
+      ]
+    },
+    {
+      "id": "rag-060",
+      "category": "rag",
+      "route_correct": true,
+      "refusal_correct": true,
+      "evidence_recalled": true,
+      "citation_accuracy": 0.0,
+      "forbidden_clear": true,
+      "answer_match": true,
+      "latency_ms": 50.77,
+      "actual_route": "rag",
+      "refused": false,
+      "citation_ids": [
+        "swg27050456",
+        "swg21255545"
+      ]
+    }
+  ]
+}

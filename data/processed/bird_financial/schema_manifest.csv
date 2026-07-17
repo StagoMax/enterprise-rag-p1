@@ -1,0 +1,9 @@
+﻿table,description_file,described_columns
+account,account.csv,4
+card,card.csv,4
+client,client.csv,4
+disp,disp.csv,4
+district,district.csv,16
+loan,loan.csv,7
+order,order.csv,6
+trans,trans.csv,10

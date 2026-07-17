@@ -1,0 +1,27 @@
+INFO:     127.0.0.1:57014 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57511 - "POST /dev/token HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57511 - "GET /v1/samples HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57511 - "POST /v1/query HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:57412 - "POST /dev/token HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57412 - "GET /v1/samples HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57412 - "POST /v1/query HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64848 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64848 - "GET /static/app.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58109 - "GET /static/app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53079 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53079 - "POST /dev/token HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53079 - "GET /v1/samples HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53079 - "POST /v1/query HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53079 - "POST /dev/token HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53079 - "GET /v1/samples HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53079 - "GET /v1/evaluation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64970 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64970 - "GET /static/app.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62735 - "GET /static/app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64970 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64970 - "POST /dev/token HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64970 - "GET /v1/samples HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54924 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63698 - "POST /dev/token HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63698 - "POST /v1/query HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58987 - "GET /CLodopfuncs.js?priority=1 HTTP/1.1" 404 Not Found

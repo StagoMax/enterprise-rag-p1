@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <link rel="icon" href="data:,">
+    <title>Enterprise RAG</title>
+    <link rel="stylesheet" href="/static/app.css">
+    <script defer src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+    <script defer src="/static/app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">跳到主内容</a>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="主导航">
+        <div class="brand-block">
+          <div class="brand-mark" aria-hidden="true">ER</div>
+          <div>
+            <strong>Enterprise RAG</strong>
+            <span>P1 工作台</span>
+          </div>
+        </div>
+
+        <nav class="primary-nav">
+          <button class="nav-button is-active" type="button" data-view="query">
+            <i data-lucide="search"></i><span>知识查询</span>
+          </button>
+          <button class="nav-button" type="button" data-view="knowledge">
+            <i data-lucide="library"></i><span>知识资产</span>
+          </button>
+          <button class="nav-button" type="button" data-view="evaluation">
+            <i data-lucide="chart-no-axes-combined"></i><span>基线评测</span>
+          </button>
+          <button class="nav-button" type="button" data-view="audit">
+            <i data-lucide="shield-check"></i><span>审计记录</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <label for="role-select">测试身份</label>
+          <select id="role-select">
+            <option value="engineering">Engineering</option>
+            <option value="operations">Operations</option>
+            <option value="restricted">Restricted</option>
+            <option value="knowledge_admin">Knowledge admin</option>
+            <option value="security_auditor">Security auditor</option>
+          </select>
+          <div class="service-state">
+            <span class="status-dot" id="status-dot"></span>
+            <span id="service-label">连接中</span>
+          </div>
+        </div>
+      </aside>
+
+      <main id="main-content" tabindex="-1">
+        <header class="topbar">
+          <div>
+            <span class="eyebrow" id="view-eyebrow">QUERY</span>
+            <h1 id="view-title">知识查询</h1>
+          </div>
+          <div class="runtime-facts" aria-label="运行状态">
+            <span><b id="document-count">-</b> 文档</span>
+            <span><b id="embedding-backend">-</b> 嵌入</span>
+          </div>
+        </header>
+
+        <section class="view is-active" id="view-query" aria-labelledby="view-title">
+          <form id="query-form" class="query-form">
+            <label for="question">企业问题</label>
+            <div class="composer">
+              <textarea id="question" rows="4" required maxlength="4000"></textarea>
+              <button class="primary-button" id="submit-query" type="submit">
+                <i data-lucide="arrow-up"></i><span>提交</span>
+              </button>
+            </div>
+          </form>
+
+          <div class="sample-row" id="sample-row" aria-label="示例问题"></div>
+
+          <section class="result-region" aria-live="polite" aria-busy="false">
+            <div class="empty-state" id="query-empty">尚无查询结果</div>
+            <div id="query-loading" class="loading-state" hidden>
+              <span></span><span></span><span></span>
+            </div>
+            <article id="query-result" hidden>
+              <div class="result-meta">
+                <span class="route-badge" id="route-badge"></span>
+                <span id="route-reason"></span>
+              </div>
+              <div class="answer-text" id="answer-text"></div>
+              <div class="citation-section">
+                <h2>来源</h2>
+                <ol id="citation-list"></ol>
+              </div>
+              <footer class="result-footer">
+                <code id="trace-id"></code>
+                <div class="feedback-actions" aria-label="结果反馈">
+                  <button type="button" data-rating="helpful" title="有用" aria-label="标记为有用">
+                    <i data-lucide="thumbs-up"></i>
+                  </button>
+                  <button type="button" data-rating="unhelpful" title="无用" aria-label="标记为无用">
+                    <i data-lucide="thumbs-down"></i>
+                  </button>
+                  <button type="button" data-rating="citation_error" title="引用错误" aria-label="报告引用错误">
+                    <i data-lucide="file-warning"></i>
+                  </button>
+                  <button type="button" data-rating="permission_issue" title="权限问题" aria-label="报告权限问题">
+                    <i data-lucide="shield-alert"></i>
+                  </button>
+                </div>
+              </footer>
+            </article>
+          </section>
+        </section>
+
+        <section class="view" id="view-knowledge" hidden>
+          <div class="section-heading">
+            <div><span class="eyebrow">AUTHORIZED</span><h2>当前可访问文档</h2></div>
+            <span class="count-label" id="knowledge-count">0</span>
+          </div>
+          <div id="knowledge-error" class="inline-message" hidden></div>
+          <table class="data-table" id="knowledge-table">
+            <thead><tr><th>文档</th><th>分类</th><th>版本</th><th>所有者</th></tr></thead>
+            <tbody></tbody>
+          </table>
+
+          <form id="ingest-form" class="ingest-form" hidden>
+            <div class="section-heading"><div><span class="eyebrow">INGEST</span><h2>新增知识</h2></div></div>
+            <div class="form-grid">
+              <label>文档 ID<input name="document_id" required></label>
+              <label>标题<input name="title" required></label>
+              <label>所有者<input name="owner" value="knowledge-admin" required></label>
+              <label>分类<input name="business_class" value="internal-guide" required></label>
+              <label>允许角色
+                <select name="allowed_role">
+                  <option value="engineering">Engineering</option>
+                  <option value="operations">Operations</option>
+                  <option value="restricted">Restricted</option>
+                </select>
+              </label>
+              <label>版本<input name="version" value="1.0" required></label>
+            </div>
+            <label>正文<textarea name="content" rows="8" required></textarea></label>
+            <button class="primary-button" type="submit"><i data-lucide="upload"></i><span>发布</span></button>
+          </form>
+        </section>
+
+        <section class="view" id="view-evaluation" hidden>
+          <div id="evaluation-error" class="inline-message" hidden></div>
+          <div class="metric-strip" id="metric-strip"></div>
+          <div class="section-heading"><div><span class="eyebrow">BREAKDOWN</span><h2>分类结果</h2></div></div>
+          <table class="data-table" id="evaluation-table">
+            <thead><tr><th>类别</th><th>题数</th><th>路由</th><th>召回</th><th>拒答</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </section>
+
+        <section class="view" id="view-audit" hidden>
+          <div id="audit-error" class="inline-message" hidden></div>
+          <table class="data-table" id="audit-table">
+            <thead><tr><th>时间</th><th>路由</th><th>结果</th><th>来源</th><th>Trace ID</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  </body>
+</html>
