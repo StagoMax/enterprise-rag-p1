@@ -12,6 +12,7 @@ data/*-audit.jsonl
 data/feedback.jsonl
 data/*graph-state*.json
 data/raw/
+data/milvus/
 .cache/
 models/
 reports/*.tmp

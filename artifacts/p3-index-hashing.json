@@ -1,0 +1,11 @@
+{
+  "version": "p3-techqa-28481-v1",
+  "backend": "hashing",
+  "uri": "data/milvus/enterprise-rag.db",
+  "documents": 28481,
+  "chunks": 147358,
+  "indexed_chunks": 147358,
+  "chunk_seconds": 6.11,
+  "index_seconds": 311.46,
+  "documents_per_second": 91.44
+}
