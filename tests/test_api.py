@@ -13,6 +13,8 @@ def test_workbench_and_health_are_available(client: TestClient) -> None:
     assert health.json()["documents"] == 3
     assert health.json()["embedding_dimensions"] == 384
     assert health.json()["reranker_backend"] == "none"
+    assert health.json()["relations"] == 0
+    assert health.json()["index_version"] == "test-bootstrap-v1"
 
 
 def test_query_requires_signed_identity(client: TestClient) -> None:
@@ -162,3 +164,126 @@ def test_feedback_is_persisted(client: TestClient) -> None:
     )
     assert response.status_code == 202
     assert response.json()["status"] == "accepted"
+
+
+def test_graph_rag_expands_only_authorized_document_paths(client: TestClient) -> None:
+    payload = {
+        "version": "graph-authorized-v1",
+        "documents": [
+            {
+                "document_id": "atlas-runbook",
+                "title": "Orion Atlas deployment runbook",
+                "content": (
+                    "Atlas deployments use the approved operational sequence.\n"
+                    "For restricted key locations, see atlas-secret."
+                ),
+                "owner": "platform",
+                "business_class": "engineering-guide",
+                "allowed_roles": ["engineering"],
+            },
+            {
+                "document_id": "atlas-recovery",
+                "title": "Orion Atlas recovery procedure",
+                "content": "Recovery requires restoring the last signed checkpoint.",
+                "owner": "platform",
+                "business_class": "engineering-guide",
+                "allowed_roles": ["engineering"],
+            },
+            {
+                "document_id": "atlas-secret",
+                "title": "Orion Atlas restricted key map",
+                "content": "Restricted recovery key location.",
+                "owner": "security",
+                "business_class": "restricted-design",
+                "allowed_roles": ["restricted"],
+            },
+        ],
+        "relations": [
+            {
+                "source_id": "atlas-runbook",
+                "target_id": "atlas-recovery",
+                "relation": "references",
+            },
+            {
+                "source_id": "atlas-runbook",
+                "target_id": "atlas-secret",
+                "relation": "references",
+            },
+        ],
+    }
+    published = client.post(
+        "/v1/index/publish",
+        headers=auth_header(client, "knowledge_admin"),
+        json=payload,
+    )
+    assert published.status_code == 200
+    assert published.json()["relations"] == 2
+
+    response = client.post(
+        "/v1/query",
+        headers=auth_header(client, "engineering"),
+        json={
+            "question": "From the Orion Atlas deployment runbook, follow its documented reference.",
+            "retrieval_mode": "graph",
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    sources = [citation["source_id"] for citation in body["citations"]]
+    assert sources[:2] == ["atlas-runbook", "atlas-recovery"]
+    assert "atlas-secret" not in sources
+    serialized_paths = str(body["metadata"]["graph_paths"])
+    assert "atlas-recovery" in serialized_paths
+    assert "atlas-secret" not in serialized_paths
+    assert "atlas-secret" not in str(body)
+    assert "受限引用已隐藏" in body["answer"]
+    assert body["citations"][1]["retrieval_mode"] == "graph"
+    assert body["citations"][1]["graph_path"] == ["atlas-runbook", "atlas-recovery"]
+
+    exact_response = client.post(
+        "/v1/query",
+        headers=auth_header(client, "engineering"),
+        json={"question": "Find document ID atlas-runbook."},
+    ).json()
+    assert "atlas-secret" not in str(exact_response)
+    assert "受限引用已隐藏" in exact_response["answer"]
+
+
+def test_index_publish_and_paired_rollback(client: TestClient) -> None:
+    admin = auth_header(client, "knowledge_admin")
+    published = client.post(
+        "/v1/index/publish",
+        headers=admin,
+        json={
+            "version": "rollback-candidate-v1",
+            "documents": [
+                {
+                    "document_id": "temporary-guide",
+                    "title": "Temporary Orion guide",
+                    "content": "This document exists only in the candidate index.",
+                    "owner": "knowledge-ops",
+                    "business_class": "engineering-guide",
+                    "allowed_roles": ["engineering"],
+                }
+            ],
+        },
+    )
+    assert published.status_code == 200
+    assert published.json()["version"] == "rollback-candidate-v1"
+    assert published.json()["documents"] == 4
+
+    rolled_back = client.post(
+        "/v1/index/rollback/test-bootstrap-v1",
+        headers=admin,
+    )
+    assert rolled_back.status_code == 200
+    assert rolled_back.json()["version"] == "test-bootstrap-v1"
+    assert rolled_back.json()["documents"] == 3
+
+    result = client.post(
+        "/v1/query",
+        headers=auth_header(client, "engineering"),
+        json={"question": "Find document ID temporary-guide."},
+    ).json()
+    assert result["refused"] is True
+    assert all(citation["source_id"] != "temporary-guide" for citation in result["citations"])
