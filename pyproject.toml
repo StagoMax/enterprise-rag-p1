@@ -1,7 +1,7 @@
 [project]
-name = "enterprise-rag-p1"
-version = "0.1.0"
-description = "Enterprise workflow RAG P1 vertical slice"
+name = "enterprise-rag-p2"
+version = "0.2.0"
+description = "Enterprise workflow ACL-first Graph RAG P2 experiment"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -25,6 +25,22 @@ dev = [
   "pytest>=8.3,<10",
   "pytest-cov>=6,<8",
   "ruff>=0.9,<1",
+]
+# P1.1 多格式准入：Docling 为主解析器，OOXML/HTML 直读与 pypdf 为降级路径。
+# 注意 docling 会拉入自己的 torch/torchvision，安装后需重新固定 [tool.uv.sources]
+# 里的 torch==2.7.1+cu128，否则 models extra 的 CUDA 轮子会被 PyPI 版本覆盖。
+parsing = [
+  "docling>=2.115,<3",
+  "fpdf2>=2.8,<3",
+  "openpyxl>=3.1,<4",
+  "pypdf>=5,<7",
+  "python-docx>=1.1,<2",
+  "python-pptx>=1,<2",
+]
+# 扫描件 OCR 兜底，按 docs/02 以 PaddleOCR 为主；首次运行需下载识别模型。
+parsing-ocr = [
+  "paddleocr>=3,<4",
+  "pypdfium2>=5,<6",
 ]
 
 [build-system]

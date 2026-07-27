@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install project
+        # Only the base + dev extras. The `models` extra pulls torch and the
+        # embedding weights, which the hashing backend below does not need.
+        run: uv sync --extra dev
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Unit tests
+        run: uv run pytest -p no:cacheprovider
+
+      - name: Golden-set evaluation (hashing backend)
+        # The hashing backend is deterministic and needs no GPU or model weights,
+        # so it can gate every push. The Nemotron baseline stays a manual run.
+        run: |
+          uv run python scripts/evaluate_p2.py \
+            --backend hashing \
+            --output reports/ci-hashing.json
+
+      - name: Compare against committed hashing baseline
+        # Thresholds are tuned for the Nemotron baseline, so they are ignored here;
+        # this step only catches drift relative to the recorded hashing numbers.
+        run: |
+          uv run python scripts/compare_reports.py \
+            reports/p2-baseline-hashing.json \
+            reports/ci-hashing.json \
+            --tolerance 0.02 \
+            --ignore-thresholds
+
+      - name: Upload evaluation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-report
+          path: reports/ci-hashing.json

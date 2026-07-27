@@ -10,6 +10,7 @@ __pycache__/
 data/audit.jsonl
 data/*-audit.jsonl
 data/feedback.jsonl
+data/*graph-state*.json
 data/raw/
 .cache/
 models/
