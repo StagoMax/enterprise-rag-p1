@@ -12,6 +12,7 @@ from typing import Any
 from enterprise_rag.answering import EvidenceAnswerGenerator
 from enterprise_rag.audit import JsonlAuditStore
 from enterprise_rag.bootstrap import initialize_demo_data, load_documents, load_gold_questions
+from enterprise_rag.chunking import build_document, chunk_document
 from enterprise_rag.config import Settings
 from enterprise_rag.embeddings import (
     BgeM3EmbeddingProvider,
@@ -19,6 +20,8 @@ from enterprise_rag.embeddings import (
     HashingEmbeddingProvider,
     NemotronEmbeddingProvider,
 )
+from enterprise_rag.graph import VersionedKnowledgeGraph
+from enterprise_rag.graph_retrieval import GraphRagRetriever
 from enterprise_rag.models import Principal, QueryRequest
 from enterprise_rag.retrieval import InMemoryHybridStore
 from enterprise_rag.router import RuleBasedRouter
@@ -59,15 +62,25 @@ def build_service(settings: Settings) -> EnterpriseRagService:
         dense_weight=settings.dense_weight,
         reranker=reranker,
     )
+    items = []
+    for document_input in load_documents(settings.corpus_path):
+        document = build_document(document_input)
+        items.append((document, chunk_document(document)))
+    store.upsert_documents(items)
+    store.commit("p1-evaluation")
+    graph = VersionedKnowledgeGraph()
+    graph.publish("p1-evaluation", [], store.document_ids())
+    retriever = GraphRagRetriever(store, graph)
     service = EnterpriseRagService(
         settings=settings,
         router=RuleBasedRouter(),
         store=store,
+        graph=graph,
+        retriever=retriever,
         sql_tool=ReadOnlySqlTool(settings.demo_db_path),
         audit=JsonlAuditStore(settings.audit_path),
         answer_generator=EvidenceAnswerGenerator(),
     )
-    service.ingest_many(load_documents(settings.corpus_path))
     return service
 
 
@@ -262,6 +275,7 @@ def main() -> None:
         nemotron_dimensions=args.dimensions,
         nemotron_device=args.device,
         bge_device=args.device,
+        graph_enabled=False,
         dense_weight=args.dense_weight,
         reranker_backend=args.reranker,
         reranker_model_id=args.reranker_model,
