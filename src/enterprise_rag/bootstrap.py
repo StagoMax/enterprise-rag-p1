@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from enterprise_rag.models import DocumentInput
+from enterprise_rag.models import DocumentInput, GraphEdge
 from enterprise_rag.sql_tool import initialize_demo_database
 
 
@@ -74,3 +74,10 @@ def load_gold_questions(path: Path) -> list[dict[str, object]]:
         return []
     with path.open(encoding="utf-8") as handle:
         return [json.loads(line) for line in handle if line.strip()]
+
+
+def load_graph_edges(path: Path) -> list[GraphEdge]:
+    if not path.exists():
+        return []
+    with path.open(encoding="utf-8") as handle:
+        return [GraphEdge.model_validate_json(line) for line in handle if line.strip()]

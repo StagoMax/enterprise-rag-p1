@@ -1,8 +1,8 @@
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class Route(StrEnum):
@@ -16,6 +16,12 @@ class DocumentStatus(StrEnum):
     ACTIVE = "active"
     DRAFT = "draft"
     EXPIRED = "expired"
+
+
+class GraphRelationType(StrEnum):
+    REFERENCES = "references"
+    SUPERSEDES = "supersedes"
+    RELATED_TO = "related_to"
 
 
 class Principal(BaseModel):
@@ -63,11 +69,34 @@ class Chunk(BaseModel):
     business_class: str
 
 
+class GraphEdge(BaseModel):
+    source_id: str = Field(min_length=1, max_length=128)
+    target_id: str = Field(min_length=1, max_length=128)
+    relation: GraphRelationType = GraphRelationType.REFERENCES
+    confidence: float = Field(default=1.0, ge=0, le=1)
+    evidence_anchor: str | None = Field(default=None, max_length=500)
+
+    @model_validator(mode="after")
+    def reject_self_reference(self) -> "GraphEdge":
+        if self.source_id == self.target_id:
+            raise ValueError("graph edges cannot reference the same document")
+        return self
+
+
+class GraphPath(BaseModel):
+    node_ids: list[str] = Field(min_length=2)
+    relations: list[GraphRelationType] = Field(min_length=1)
+    confidence: float = Field(ge=0, le=1)
+
+
 class SearchHit(BaseModel):
     chunk: Chunk
     score: float
     lexical_score: float
     dense_score: float
+    retrieval_mode: Literal["hybrid", "graph"] = "hybrid"
+    graph_path: list[str] = Field(default_factory=list)
+    graph_relations: list[GraphRelationType] = Field(default_factory=list)
 
 
 class RouteDecision(BaseModel):
@@ -75,6 +104,7 @@ class RouteDecision(BaseModel):
     confidence: float = Field(ge=0, le=1)
     reason: str
     requires_citation: bool = True
+    graph_expansion: bool = False
 
 
 class Citation(BaseModel):
@@ -84,11 +114,14 @@ class Citation(BaseModel):
     version: str | None = None
     anchor: str | None = None
     score: float | None = None
+    retrieval_mode: Literal["hybrid", "graph", "tool"] = "hybrid"
+    graph_path: list[str] = Field(default_factory=list)
 
 
 class QueryRequest(BaseModel):
     question: str = Field(min_length=2, max_length=4000)
     conversation_id: str | None = None
+    retrieval_mode: Literal["auto", "hybrid", "graph"] = "auto"
 
 
 class QueryResponse(BaseModel):
@@ -111,6 +144,21 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     expires_in: int
+
+
+class IndexPublishRequest(BaseModel):
+    version: str = Field(min_length=1, max_length=128)
+    documents: list[DocumentInput] = Field(default_factory=list)
+    relations: list[GraphEdge] = Field(default_factory=list)
+    replace_relations: bool = False
+
+
+class IndexSnapshotInfo(BaseModel):
+    version: str
+    documents: int
+    chunks: int
+    relations: int
+    active: bool
 
 
 class AuditEvent(BaseModel):

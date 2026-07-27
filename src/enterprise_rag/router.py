@@ -20,6 +20,11 @@ class RuleBasedRouter:
         r"\bswg\w+\b",
         r"\bdocument\s+(?:id|number)\b",
     )
+    _graph_patterns = (
+        r"跨文档|关联文档|引用的文档|引用了哪些|替代版本|后续版本",
+        r"\b(?:referenced|related|linked|superseding|replacement)\s+document\b",
+        r"\bfollow\s+(?:the|its)\s+(?:documented\s+)?reference\b",
+    )
 
     @staticmethod
     def _matches(patterns: tuple[str, ...], question: str) -> bool:
@@ -44,6 +49,13 @@ class RuleBasedRouter:
                 route=Route.EXACT_SEARCH,
                 confidence=0.9,
                 reason="问题包含编号、错误码或版本等精确定位条件",
+            )
+        if self._matches(self._graph_patterns, question):
+            return RouteDecision(
+                route=Route.RAG,
+                confidence=0.9,
+                reason="问题要求沿已发布文档关系进行跨文档检索",
+                graph_expansion=True,
             )
         return RouteDecision(
             route=Route.RAG,

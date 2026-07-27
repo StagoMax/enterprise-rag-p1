@@ -41,6 +41,37 @@ class InMemoryHybridStore:
         self._documents: dict[str, DocumentRecord] = {}
         self._chunks: dict[str, Chunk] = {}
         self._vectors: dict[str, np.ndarray] = {}
+        self._snapshots: dict[
+            str,
+            tuple[dict[str, DocumentRecord], dict[str, Chunk], dict[str, np.ndarray]],
+        ] = {}
+        self._active_version: str | None = None
+
+    @property
+    def active_version(self) -> str | None:
+        return self._active_version
+
+    def has_version(self, version: str) -> bool:
+        return version in self._snapshots
+
+    def commit(self, version: str) -> None:
+        if version in self._snapshots:
+            raise ValueError(f"index version already exists: {version}")
+        self._snapshots[version] = (
+            self._documents.copy(),
+            self._chunks.copy(),
+            self._vectors.copy(),
+        )
+        self._active_version = version
+
+    def rollback(self, version: str) -> None:
+        if version not in self._snapshots:
+            raise ValueError(f"unknown index version: {version}")
+        documents, chunks, vectors = self._snapshots[version]
+        self._documents = documents.copy()
+        self._chunks = chunks.copy()
+        self._vectors = vectors.copy()
+        self._active_version = version
 
     def upsert_document(self, document: DocumentRecord, chunks: list[Chunk]) -> None:
         self.upsert_documents([(document, chunks)])
@@ -92,6 +123,7 @@ class InMemoryHybridStore:
         document_count = len(chunks)
         average_length = sum(lengths.values()) / max(document_count, 1)
         identifiers = _identifiers(query)
+        normalized_query = query.lower()
         raw_scores: dict[str, float] = {}
         k1 = 1.5
         b = 0.75
@@ -119,6 +151,8 @@ class InMemoryHybridStore:
                 score += 8.0
             if query.strip().lower() in haystack:
                 score += 4.0
+            if chunk.title.strip().lower() in normalized_query:
+                score += 12.0
             raw_scores[chunk.chunk_id] = score
 
         maximum = max(raw_scores.values(), default=0.0)
@@ -134,9 +168,18 @@ class InMemoryHybridStore:
         top_k: int = 5,
         exact: bool = False,
         min_score: float = 0.0,
+        candidate_document_ids: set[str] | None = None,
     ) -> list[SearchHit]:
         # Authorization is deliberately evaluated before any candidate is scored.
-        candidates = [chunk for chunk in self._chunks.values() if self._authorized(chunk, roles)]
+        candidates = [
+            chunk
+            for chunk in self._chunks.values()
+            if self._authorized(chunk, roles)
+            and (
+                candidate_document_ids is None
+                or chunk.document_id in candidate_document_ids
+            )
+        ]
         if not candidates:
             return []
 
@@ -203,6 +246,31 @@ class InMemoryHybridStore:
 
     def documents(self) -> Iterable[DocumentRecord]:
         return self._documents.values()
+
+    def document_ids(self) -> set[str]:
+        return set(self._documents)
+
+    def chunk_count(self) -> int:
+        return len(self._chunks)
+
+    def authorized_document_ids(self, roles: frozenset[str]) -> set[str]:
+        return {
+            document.document_id
+            for document in self._documents.values()
+            if document.status == DocumentStatus.ACTIVE and bool(document.allowed_roles & roles)
+        }
+
+    def title_matched_document_ids(self, query: str, roles: frozenset[str]) -> list[str]:
+        normalized_query = " ".join(query.lower().split())
+        matches = [
+            document
+            for document in self.authorized_documents(roles)
+            if " ".join(document.title.lower().split()) in normalized_query
+        ]
+        return [
+            document.document_id
+            for document in sorted(matches, key=lambda item: len(item.title), reverse=True)
+        ]
 
     def authorized_documents(self, roles: frozenset[str]) -> list[DocumentRecord]:
         return [
