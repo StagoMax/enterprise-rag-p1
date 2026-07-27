@@ -8,6 +8,7 @@ const state = {
 const viewMeta = {
   query: ["QUERY", "知识查询"],
   knowledge: ["KNOWLEDGE", "知识资产"],
+  graph: ["GRAPH", "图索引"],
   evaluation: ["EVALUATION", "基线评测"],
   audit: ["AUDIT", "审计记录"],
 };
@@ -57,6 +58,8 @@ async function refreshHealth() {
     $("#status-dot").className = "status-dot is-online";
     $("#service-label").textContent = "服务正常";
     $("#document-count").textContent = health.documents;
+    $("#relation-count").textContent = health.relations;
+    $("#index-version").textContent = health.index_version;
     $("#embedding-backend").textContent = health.embedding_backend;
   } catch (error) {
     $("#status-dot").className = "status-dot is-offline";
@@ -76,6 +79,8 @@ async function loadSamples() {
       button.title = sample.question;
       button.addEventListener("click", () => {
         $("#question").value = sample.question;
+        const mode = sample.category === "graph_rag" ? "graph" : "auto";
+        $(`input[name="retrieval_mode"][value="${mode}"]`).checked = true;
         $("#question").focus();
       });
       container.append(button);
@@ -113,7 +118,8 @@ function renderCitations(citations) {
     title.textContent = citation.title;
     const detail = document.createElement("div");
     detail.className = "citation-detail";
-    detail.textContent = [citation.source_id, citation.version, citation.anchor].filter(Boolean).join(" · ");
+    const path = citation.graph_path?.length ? citation.graph_path.join(" → ") : null;
+    detail.textContent = [citation.source_id, citation.version, citation.anchor, citation.retrieval_mode, path].filter(Boolean).join(" · ");
     body.append(title, detail);
     const score = document.createElement("span");
     score.className = "citation-score";
@@ -123,16 +129,33 @@ function renderCitations(citations) {
   });
 }
 
+function renderGraphPaths(paths) {
+  const section = $("#graph-path-section");
+  const list = $("#graph-path-list");
+  list.replaceChildren();
+  section.hidden = !paths.length;
+  for (const path of paths) {
+    const item = document.createElement("li");
+    const nodes = document.createElement("code");
+    nodes.textContent = path.node_ids.join(" → ");
+    const relation = document.createElement("span");
+    relation.textContent = path.relations.join(" / ");
+    item.append(nodes, relation);
+    list.append(item);
+  }
+}
+
 function renderQueryResult(result) {
   state.traceId = result.trace_id;
   $("#query-loading").hidden = true;
   $("#query-result").hidden = false;
   const badge = $("#route-badge");
-  badge.textContent = routeLabels[result.route] || result.route;
+  badge.textContent = result.metadata.graph_used ? "Graph RAG" : (routeLabels[result.route] || result.route);
   badge.classList.toggle("is-refused", result.refused);
   $("#route-reason").textContent = result.route_reason;
   $("#answer-text").textContent = result.answer;
   $("#trace-id").textContent = result.trace_id;
+  renderGraphPaths(result.metadata.graph_paths || []);
   renderCitations(result.citations);
 }
 
@@ -142,9 +165,10 @@ async function submitQuery(event) {
   if (!question) return;
   setLoading(true);
   try {
+    const retrievalMode = $('input[name="retrieval_mode"]:checked').value;
     const result = await api("/v1/query", {
       method: "POST",
-      body: JSON.stringify({ question }),
+      body: JSON.stringify({ question, retrieval_mode: retrievalMode }),
     });
     renderQueryResult(result);
   } catch (error) {
@@ -154,6 +178,38 @@ async function submitQuery(event) {
   } finally {
     $("#submit-query").disabled = false;
     $(".result-region").setAttribute("aria-busy", "false");
+  }
+}
+
+async function loadGraph() {
+  const table = $("#graph-table tbody");
+  const versions = $("#graph-version-list");
+  table.replaceChildren();
+  versions.replaceChildren();
+  try {
+    const [index, graph] = await Promise.all([api("/v1/index"), api("/v1/graph")]);
+    showInlineError("#graph-error", "");
+    $("#graph-version").textContent = index.version;
+    $("#graph-documents").textContent = index.documents;
+    $("#graph-chunks").textContent = index.chunks;
+    $("#graph-relations").textContent = index.relations;
+    for (const [relation, count] of Object.entries(graph.relation_counts)) {
+      const row = document.createElement("tr");
+      for (const value of [relation, count]) {
+        const cell = document.createElement("td");
+        cell.textContent = value;
+        row.append(cell);
+      }
+      table.append(row);
+    }
+    for (const version of graph.available_versions) {
+      const item = document.createElement("code");
+      item.textContent = version;
+      if (version === graph.active_version) item.dataset.active = "true";
+      versions.append(item);
+    }
+  } catch (error) {
+    showInlineError("#graph-error", `加载失败：${error.message}`);
   }
 }
 
@@ -220,37 +276,103 @@ async function submitIngest(event) {
 }
 
 function percent(value) { return `${(Number(value) * 100).toFixed(1)}%`; }
+function percentShort(value) { return (Number(value) * 100).toFixed(1); }
+
+const P2_METRIC_LABELS = [
+  ["route_accuracy", "路由正确率"],
+  ["p1_retrieval_recall_at_3", "P1 Recall@3"],
+  ["p1_top1_citation_accuracy", "P1 Top-1"],
+  ["mrr_at_3", "MRR@3"],
+  ["ndcg_at_3", "nDCG@3"],
+  ["graph_joint_recall_at_3", "图联合召回"],
+  ["graph_target_recall_at_3", "图目标召回"],
+  ["graph_path_accuracy", "路径正确率"],
+  ["graph_recall_gain", "图召回增益"],
+  ["graph_acl_isolation", "图权限隔离"],
+  ["permission_isolation", "整体权限隔离"],
+  ["refusal_accuracy", "拒答正确率"],
+  ["tool_answer_accuracy", "工具答案正确率"],
+  ["answer_span_hit_rate_fitting", "答案命中率"],
+  ["answer_content_recall", "答案内容召回"],
+];
+
+const P1_METRIC_LABELS = [
+  ["route_accuracy", "路由正确率"],
+  ["retrieval_recall_at_3", "Recall@3"],
+  ["citation_accuracy", "引用正确率"],
+  ["refusal_accuracy", "拒答正确率"],
+  ["permission_isolation", "权限隔离"],
+  ["tool_answer_accuracy", "工具答案"],
+];
+
+function renderRunSummary(report) {
+  const summary = $("#evaluation-summary");
+  summary.replaceChildren();
+  const passed = report.passed === true;
+  const failedCount = Object.values(report.checks ?? {}).filter((ok) => ok === false).length;
+  const fields = [
+    ["后端", report.model ? `${report.backend} · ${report.model}` : String(report.backend ?? "—")],
+    ["语料 / 关系", `${report.documents ?? "—"} 篇 · ${report.relations ?? "—"} 条`],
+    ["金标题数", String(report.questions ?? "—")],
+    ["门槛", passed ? "全部通过" : `${failedCount} 项未达标`],
+  ];
+  fields.forEach(([label, value], index) => {
+    const cell = document.createElement("div");
+    const name = document.createElement("span");
+    name.textContent = label;
+    const body = document.createElement("b");
+    body.textContent = value;
+    // Only the verdict carries pass/fail colour; the rest are plain facts.
+    if (index === fields.length - 1) body.className = passed ? "is-pass" : "is-fail";
+    cell.append(name, body);
+    summary.append(cell);
+  });
+}
 
 async function loadEvaluation() {
   const strip = $("#metric-strip");
   strip.replaceChildren();
+  $("#evaluation-summary").replaceChildren();
   $("#evaluation-table tbody").replaceChildren();
   try {
     const report = await api("/v1/evaluation");
     showInlineError("#evaluation-error", "");
-    const labels = {
-      route_accuracy: "路由正确率",
-      retrieval_recall_at_3: "Recall@3",
-      citation_accuracy: "引用正确率",
-      refusal_accuracy: "拒答正确率",
-      permission_isolation: "权限隔离",
-      tool_answer_accuracy: "工具答案",
-    };
-    Object.entries(labels).forEach(([key, label]) => {
+    renderRunSummary(report);
+    const labels = report.stage === "p2-experimental" ? P2_METRIC_LABELS : P1_METRIC_LABELS;
+    const intervals = report.confidence_intervals ?? {};
+    labels.forEach(([key, label]) => {
+      // Older reports predate some metrics; skip rather than render NaN.
+      if (report.metrics?.[key] === undefined) return;
       const item = document.createElement("div");
       item.className = "metric-item";
       const name = document.createElement("span");
       name.textContent = label;
       const value = document.createElement("b");
       value.textContent = percent(report.metrics[key]);
-      value.className = report.checks[key] ? "is-pass" : "is-fail";
+      const check = report.checks?.[key];
+      // Ungated metrics have no check; neutral styling avoids reading as a failure.
+      value.className = check === undefined ? "is-info" : check ? "is-pass" : "is-fail";
       item.append(name, value);
+
+      const interval = intervals[key];
+      const note = document.createElement("small");
+      if (interval) {
+        note.textContent =
+          `95% CI ${percentShort(interval.low)}–${percentShort(interval.high)}% · n=${interval.n}`;
+      } else if (check === undefined) {
+        note.textContent = "参考指标，不设门槛";
+      } else {
+        // Gated but not a proportion (e.g. a difference of two rates), so no
+        // Wilson interval applies; show what it is being held to instead.
+        note.textContent = `门槛 ≥ ${percent(report.thresholds?.[key] ?? 0)}`;
+      }
+      item.append(note);
       strip.append(item);
     });
     const table = $("#evaluation-table tbody");
     Object.entries(report.by_category).forEach(([category, metrics]) => {
       const row = document.createElement("tr");
-      [category, metrics.count, percent(metrics.route_accuracy), percent(metrics.evidence_recall), percent(metrics.refusal_accuracy)].forEach((value) => {
+      [category, metrics.count, percent(metrics.route_accuracy), percent(metrics.evidence_recall), percent(metrics.permission_isolation ?? metrics.refusal_accuracy)].forEach((value) => {
         const cell = document.createElement("td");
         cell.textContent = value;
         row.append(cell);
@@ -293,6 +415,7 @@ async function switchView(view) {
   $("#view-eyebrow").textContent = viewMeta[view][0];
   $("#view-title").textContent = viewMeta[view][1];
   if (view === "knowledge") await loadKnowledge();
+  if (view === "graph") await loadGraph();
   if (view === "evaluation") await loadEvaluation();
   if (view === "audit") await loadAudit();
   $("#main-content").focus({ preventScroll: true });

@@ -7,7 +7,7 @@
     <link rel="icon" href="data:,">
     <title>Enterprise RAG</title>
     <link rel="stylesheet" href="/static/app.css">
-    <script defer src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+    <script defer src="/static/lucide-local.js"></script>
     <script defer src="/static/app.js"></script>
   </head>
   <body>
@@ -18,7 +18,7 @@
           <div class="brand-mark" aria-hidden="true">ER</div>
           <div>
             <strong>Enterprise RAG</strong>
-            <span>P1 工作台</span>
+            <span>P2 实验工作台</span>
           </div>
         </div>
 
@@ -28,6 +28,9 @@
           </button>
           <button class="nav-button" type="button" data-view="knowledge">
             <i data-lucide="library"></i><span>知识资产</span>
+          </button>
+          <button class="nav-button" type="button" data-view="graph">
+            <i data-lucide="network"></i><span>图索引</span>
           </button>
           <button class="nav-button" type="button" data-view="evaluation">
             <i data-lucide="chart-no-axes-combined"></i><span>基线评测</span>
@@ -61,6 +64,8 @@
           </div>
           <div class="runtime-facts" aria-label="运行状态">
             <span><b id="document-count">-</b> 文档</span>
+            <span><b id="relation-count">-</b> 关系</span>
+            <span><b id="index-version">-</b> 版本</span>
             <span><b id="embedding-backend">-</b> 嵌入</span>
           </div>
         </header>
@@ -68,6 +73,12 @@
         <section class="view is-active" id="view-query" aria-labelledby="view-title">
           <form id="query-form" class="query-form">
             <label for="question">企业问题</label>
+            <fieldset class="mode-control">
+              <legend>检索模式</legend>
+              <label><input type="radio" name="retrieval_mode" value="auto" checked><span>自动</span></label>
+              <label><input type="radio" name="retrieval_mode" value="hybrid"><span>Hybrid</span></label>
+              <label><input type="radio" name="retrieval_mode" value="graph"><span>Graph</span></label>
+            </fieldset>
             <div class="composer">
               <textarea id="question" rows="4" required maxlength="4000"></textarea>
               <button class="primary-button" id="submit-query" type="submit">
@@ -89,6 +100,10 @@
                 <span id="route-reason"></span>
               </div>
               <div class="answer-text" id="answer-text"></div>
+              <section class="graph-path-section" id="graph-path-section" hidden>
+                <h2>图检索路径</h2>
+                <ol id="graph-path-list"></ol>
+              </section>
               <div class="citation-section">
                 <h2>来源</h2>
                 <ol id="citation-list"></ol>
@@ -112,6 +127,23 @@
               </footer>
             </article>
           </section>
+        </section>
+
+        <section class="view" id="view-graph" hidden>
+          <div id="graph-error" class="inline-message" hidden></div>
+          <div class="graph-summary" id="graph-summary">
+            <div><span>活动版本</span><b id="graph-version">-</b></div>
+            <div><span>文档</span><b id="graph-documents">-</b></div>
+            <div><span>分块</span><b id="graph-chunks">-</b></div>
+            <div><span>关系</span><b id="graph-relations">-</b></div>
+          </div>
+          <div class="section-heading"><div><span class="eyebrow">RELATIONS</span><h2>已发布关系</h2></div></div>
+          <table class="data-table" id="graph-table">
+            <thead><tr><th>关系类型</th><th>边数量</th></tr></thead>
+            <tbody></tbody>
+          </table>
+          <div class="section-heading"><div><span class="eyebrow">VERSIONS</span><h2>可回滚版本</h2></div></div>
+          <div class="version-list" id="graph-version-list"></div>
         </section>
 
         <section class="view" id="view-knowledge" hidden>
@@ -148,10 +180,12 @@
 
         <section class="view" id="view-evaluation" hidden>
           <div id="evaluation-error" class="inline-message" hidden></div>
+          <div class="run-summary" id="evaluation-summary"></div>
           <div class="metric-strip" id="metric-strip"></div>
+          <p class="metric-note">比率均附 95% Wilson 置信区间与样本量。部分切片仅 20 题，100% 的区间下界只到 83.9%，应以区间而非点估计判读。</p>
           <div class="section-heading"><div><span class="eyebrow">BREAKDOWN</span><h2>分类结果</h2></div></div>
           <table class="data-table" id="evaluation-table">
-            <thead><tr><th>类别</th><th>题数</th><th>路由</th><th>召回</th><th>拒答</th></tr></thead>
+            <thead><tr><th>类别</th><th>题数</th><th>路由</th><th>召回</th><th>隔离 / 拒答</th></tr></thead>
             <tbody></tbody>
           </table>
         </section>
