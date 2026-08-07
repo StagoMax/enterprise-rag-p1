@@ -1,0 +1,629 @@
+切块完成：800 篇 -> 4232 分块，用时 0.1s
+  200/800 篇，已写入 1381 分块，2.5 篇/s，预计剩余 4.0 分钟
+  400/800 篇，已写入 2344 分块，2.9 篇/s，预计剩余 2.3 分钟
+  600/800 篇，已写入 3150 分块，3.3 篇/s，预计剩余 1.0 分钟
+  800/800 篇，已写入 4232 分块，3.1 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 800,
+  "indexed_documents": 1600,
+  "chunks_written": 4232,
+  "published": false,
+  "chunk_seconds": 0.07,
+  "index_seconds": 262.65,
+  "documents_per_second": 3.05
+}
+切块完成：800 篇 -> 3896 分块，用时 0.1s
+  200/800 篇，已写入 1099 分块，1.7 篇/s，预计剩余 5.8 分钟
+  400/800 篇，已写入 2113 分块，2.1 篇/s，预计剩余 3.2 分钟
+  600/800 篇，已写入 3079 分块，2.4 篇/s，预计剩余 1.4 分钟
+  800/800 篇，已写入 3896 分块，2.7 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 1600,
+  "indexed_documents": 2400,
+  "chunks_written": 3896,
+  "published": false,
+  "chunk_seconds": 0.07,
+  "index_seconds": 298.1,
+  "documents_per_second": 2.68
+}
+切块完成：800 篇 -> 4403 分块，用时 0.1s
+  200/800 篇，已写入 1076 分块，3.1 篇/s，预计剩余 3.3 分钟
+  400/800 篇，已写入 2181 分块，3.2 篇/s，预计剩余 2.1 分钟
+  600/800 篇，已写入 3320 分块，3.6 篇/s，预计剩余 0.9 分钟
+  800/800 篇，已写入 4403 分块，3.9 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 2400,
+  "indexed_documents": 3200,
+  "chunks_written": 4403,
+  "published": false,
+  "chunk_seconds": 0.12,
+  "index_seconds": 206.66,
+  "documents_per_second": 3.87
+}
+切块完成：800 篇 -> 4108 分块，用时 0.1s
+  200/800 篇，已写入 1060 分块，5.6 篇/s，预计剩余 1.8 分钟
+  400/800 篇，已写入 2090 分块，5.8 篇/s，预计剩余 1.2 分钟
+  600/800 篇，已写入 3127 分块，5.9 篇/s，预计剩余 0.6 分钟
+  800/800 篇，已写入 4108 分块，6.0 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 3200,
+  "indexed_documents": 4000,
+  "chunks_written": 4108,
+  "published": false,
+  "chunk_seconds": 0.07,
+  "index_seconds": 136.79,
+  "documents_per_second": 5.85
+}
+切块完成：800 篇 -> 4089 分块，用时 0.1s
+  200/800 篇，已写入 1040 分块，5.9 篇/s，预计剩余 1.7 分钟
+  400/800 篇，已写入 1989 分块，6.1 篇/s，预计剩余 1.1 分钟
+  600/800 篇，已写入 3009 分块，5.5 篇/s，预计剩余 0.6 分钟
+  800/800 篇，已写入 4089 分块，5.0 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 4000,
+  "indexed_documents": 4800,
+  "chunks_written": 4089,
+  "published": false,
+  "chunk_seconds": 0.09,
+  "index_seconds": 165.09,
+  "documents_per_second": 4.85
+}
+切块完成：800 篇 -> 4003 分块，用时 0.1s
+  200/800 篇，已写入 1015 分块，4.3 篇/s，预计剩余 2.3 分钟
+  400/800 篇，已写入 2098 分块，4.2 篇/s，预计剩余 1.6 分钟
+  600/800 篇，已写入 3037 分块，4.5 篇/s，预计剩余 0.7 分钟
+  800/800 篇，已写入 4003 分块，4.6 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 4800,
+  "indexed_documents": 5600,
+  "chunks_written": 4003,
+  "published": false,
+  "chunk_seconds": 0.1,
+  "index_seconds": 178.27,
+  "documents_per_second": 4.49
+}
+切块完成：800 篇 -> 3950 分块，用时 0.1s
+  200/800 篇，已写入 1083 分块，4.1 篇/s，预计剩余 2.4 分钟
+  400/800 篇，已写入 2134 分块，4.2 篇/s，预计剩余 1.6 分钟
+  600/800 篇，已写入 3037 分块，4.3 篇/s，预计剩余 0.8 分钟
+  800/800 篇，已写入 3950 分块，4.3 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 5600,
+  "indexed_documents": 6400,
+  "chunks_written": 3950,
+  "published": false,
+  "chunk_seconds": 0.08,
+  "index_seconds": 191.44,
+  "documents_per_second": 4.18
+}
+切块完成：800 篇 -> 4278 分块，用时 0.1s
+  200/800 篇，已写入 1061 分块，3.5 篇/s，预计剩余 2.9 分钟
+  400/800 篇，已写入 2142 分块，3.7 篇/s，预计剩余 1.8 分钟
+  600/800 篇，已写入 3226 分块，3.7 篇/s，预计剩余 0.9 分钟
+  800/800 篇，已写入 4278 分块，3.8 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 6400,
+  "indexed_documents": 7200,
+  "chunks_written": 4278,
+  "published": false,
+  "chunk_seconds": 0.08,
+  "index_seconds": 217.0,
+  "documents_per_second": 3.69
+}
+切块完成：800 篇 -> 4229 分块，用时 0.1s
+  200/800 篇，已写入 1101 分块，3.8 篇/s，预计剩余 2.7 分钟
+  400/800 篇，已写入 2161 分块，4.0 篇/s，预计剩余 1.7 分钟
+  600/800 篇，已写入 3181 分块，4.1 篇/s，预计剩余 0.8 分钟
+  800/800 篇，已写入 4229 分块，4.2 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 7200,
+  "indexed_documents": 8000,
+  "chunks_written": 4229,
+  "published": false,
+  "chunk_seconds": 0.11,
+  "index_seconds": 194.83,
+  "documents_per_second": 4.11
+}
+切块完成：800 篇 -> 4564 分块，用时 0.1s
+  200/800 篇，已写入 1101 分块，4.6 篇/s，预计剩余 2.2 分钟
+  400/800 篇，已写入 2268 分块，4.5 篇/s，预计剩余 1.5 分钟
+  600/800 篇，已写入 3444 分块，4.5 篇/s，预计剩余 0.7 分钟
+  800/800 篇，已写入 4564 分块，4.5 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 8000,
+  "indexed_documents": 8800,
+  "chunks_written": 4564,
+  "published": false,
+  "chunk_seconds": 0.1,
+  "index_seconds": 179.99,
+  "documents_per_second": 4.44
+}
+切块完成：800 篇 -> 4430 分块，用时 0.1s
+  200/800 篇，已写入 1093 分块，4.9 篇/s，预计剩余 2.1 分钟
+  400/800 篇，已写入 2196 分块，4.9 篇/s，预计剩余 1.4 分钟
+  600/800 篇，已写入 3326 分块，4.8 篇/s，预计剩余 0.7 分钟
+  800/800 篇，已写入 4430 分块，4.8 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 8800,
+  "indexed_documents": 9600,
+  "chunks_written": 4430,
+  "published": false,
+  "chunk_seconds": 0.11,
+  "index_seconds": 168.51,
+  "documents_per_second": 4.75
+}
+切块完成：800 篇 -> 4105 分块，用时 0.1s
+  200/800 篇，已写入 1129 分块，4.5 篇/s，预计剩余 2.2 分钟
+  400/800 篇，已写入 2213 分块，4.6 篇/s，预计剩余 1.4 分钟
+  600/800 篇，已写入 3247 分块，4.8 篇/s，预计剩余 0.7 分钟
+  800/800 篇，已写入 4105 分块，5.1 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 9600,
+  "indexed_documents": 10400,
+  "chunks_written": 4105,
+  "published": false,
+  "chunk_seconds": 0.09,
+  "index_seconds": 161.32,
+  "documents_per_second": 4.96
+}
+切块完成：800 篇 -> 4253 分块，用时 0.1s
+  200/800 篇，已写入 1018 分块，8.2 篇/s，预计剩余 1.2 分钟
+  400/800 篇，已写入 2164 分块，6.9 篇/s，预计剩余 1.0 分钟
+  600/800 篇，已写入 3190 分块，6.6 篇/s，预计剩余 0.5 分钟
+  800/800 篇，已写入 4253 分块，6.0 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 10400,
+  "indexed_documents": 11200,
+  "chunks_written": 4253,
+  "published": false,
+  "chunk_seconds": 0.08,
+  "index_seconds": 144.8,
+  "documents_per_second": 5.52
+}
+切块完成：800 篇 -> 4581 分块，用时 0.1s
+  200/800 篇，已写入 1213 分块，5.1 篇/s，预计剩余 2.0 分钟
+  400/800 篇，已写入 2271 分块，5.5 篇/s，预计剩余 1.2 分钟
+  600/800 篇，已写入 3396 分块，5.5 篇/s，预计剩余 0.6 分钟
+  800/800 篇，已写入 4581 分块，5.4 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 11200,
+  "indexed_documents": 12000,
+  "chunks_written": 4581,
+  "published": false,
+  "chunk_seconds": 0.09,
+  "index_seconds": 152.4,
+  "documents_per_second": 5.25
+}
+切块完成：800 篇 -> 3627 分块，用时 0.1s
+  200/800 篇，已写入 961 分块，5.8 篇/s，预计剩余 1.7 分钟
+  400/800 篇，已写入 1754 分块，7.0 篇/s，预计剩余 0.9 分钟
+  600/800 篇，已写入 2730 分块，6.8 篇/s，预计剩余 0.5 分钟
+  800/800 篇，已写入 3627 分块，6.7 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 12000,
+  "indexed_documents": 12800,
+  "chunks_written": 3627,
+  "published": false,
+  "chunk_seconds": 0.06,
+  "index_seconds": 127.63,
+  "documents_per_second": 6.27
+}
+切块完成：800 篇 -> 3697 分块，用时 0.1s
+  200/800 篇，已写入 925 分块，6.3 篇/s，预计剩余 1.6 分钟
+  400/800 篇，已写入 1877 分块，6.5 篇/s，预计剩余 1.0 分钟
+  600/800 篇，已写入 2792 分块，6.9 篇/s，预计剩余 0.5 分钟
+  800/800 篇，已写入 3697 分块，7.1 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 12800,
+  "indexed_documents": 13600,
+  "chunks_written": 3697,
+  "published": false,
+  "chunk_seconds": 0.08,
+  "index_seconds": 116.18,
+  "documents_per_second": 6.89
+}
+切块完成：800 篇 -> 3954 分块，用时 0.2s
+  200/800 篇，已写入 1060 分块，5.8 篇/s，预计剩余 1.7 分钟
+  400/800 篇，已写入 2051 分块，6.1 篇/s，预计剩余 1.1 分钟
+  600/800 篇，已写入 2896 分块，6.6 篇/s，预计剩余 0.5 分钟
+  800/800 篇，已写入 3954 分块，6.2 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 13600,
+  "indexed_documents": 14400,
+  "chunks_written": 3954,
+  "published": false,
+  "chunk_seconds": 0.16,
+  "index_seconds": 137.07,
+  "documents_per_second": 5.84
+}
+切块完成：800 篇 -> 3172 分块，用时 0.1s
+  200/800 篇，已写入 772 分块，10.6 篇/s，预计剩余 0.9 分钟
+  400/800 篇，已写入 1422 分块，11.8 篇/s，预计剩余 0.6 分钟
+  600/800 篇，已写入 2264 分块，10.9 篇/s，预计剩余 0.3 分钟
+  800/800 篇，已写入 3172 分块，10.3 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 14400,
+  "indexed_documents": 15200,
+  "chunks_written": 3172,
+  "published": false,
+  "chunk_seconds": 0.1,
+  "index_seconds": 82.76,
+  "documents_per_second": 9.67
+}
+切块完成：800 篇 -> 3073 分块，用时 0.1s
+  200/800 篇，已写入 882 分块，8.1 篇/s，预计剩余 1.2 分钟
+  400/800 篇，已写入 1544 分块，9.3 篇/s，预计剩余 0.7 分钟
+  600/800 篇，已写入 2203 分块，9.7 篇/s，预计剩余 0.3 分钟
+  800/800 篇，已写入 3073 分块，9.4 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 15200,
+  "indexed_documents": 16000,
+  "chunks_written": 3073,
+  "published": false,
+  "chunk_seconds": 0.06,
+  "index_seconds": 89.24,
+  "documents_per_second": 8.96
+}
+切块完成：800 篇 -> 3466 分块，用时 0.2s
+  200/800 篇，已写入 964 分块，6.5 篇/s，预计剩余 1.5 分钟
+  400/800 篇，已写入 1756 分块，7.7 篇/s，预计剩余 0.9 分钟
+  600/800 篇，已写入 2574 分块，8.3 篇/s，预计剩余 0.4 分钟
+  800/800 篇，已写入 3466 分块，8.3 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 16000,
+  "indexed_documents": 16800,
+  "chunks_written": 3466,
+  "published": false,
+  "chunk_seconds": 0.2,
+  "index_seconds": 99.9,
+  "documents_per_second": 8.01
+}
+切块完成：800 篇 -> 3584 分块，用时 0.2s
+  200/800 篇，已写入 898 分块，5.2 篇/s，预计剩余 1.9 分钟
+  400/800 篇，已写入 1847 分块，5.0 篇/s，预计剩余 1.3 分钟
+  600/800 篇，已写入 2683 分块，5.3 篇/s，预计剩余 0.6 分钟
+  800/800 篇，已写入 3584 分块，5.2 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 16800,
+  "indexed_documents": 17600,
+  "chunks_written": 3584,
+  "published": false,
+  "chunk_seconds": 0.17,
+  "index_seconds": 163.51,
+  "documents_per_second": 4.89
+}
+切块完成：800 篇 -> 3566 分块，用时 0.1s
+  200/800 篇，已写入 882 分块，5.3 篇/s，预计剩余 1.9 分钟
+  400/800 篇，已写入 1803 分块，5.3 篇/s，预计剩余 1.2 分钟
+  600/800 篇，已写入 2678 分块，5.5 篇/s，预计剩余 0.6 分钟
+  800/800 篇，已写入 3566 分块，5.5 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 17600,
+  "indexed_documents": 18400,
+  "chunks_written": 3566,
+  "published": false,
+  "chunk_seconds": 0.09,
+  "index_seconds": 147.92,
+  "documents_per_second": 5.41
+}
+切块完成：800 篇 -> 3545 分块，用时 0.1s
+  200/800 篇，已写入 895 分块，5.6 篇/s，预计剩余 1.8 分钟
+  400/800 篇，已写入 1763 分块，5.6 篇/s，预计剩余 1.2 分钟
+  600/800 篇，已写入 2618 分块，5.8 篇/s，预计剩余 0.6 分钟
+  800/800 篇，已写入 3545 分块，5.8 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 18400,
+  "indexed_documents": 19200,
+  "chunks_written": 3545,
+  "published": false,
+  "chunk_seconds": 0.07,
+  "index_seconds": 140.36,
+  "documents_per_second": 5.7
+}
+切块完成：800 篇 -> 3684 分块，用时 0.1s
+  200/800 篇，已写入 1017 分块，7.6 篇/s，预计剩余 1.3 分钟
+  400/800 篇，已写入 1976 分块，7.9 篇/s，预计剩余 0.8 分钟
+  600/800 篇，已写入 2831 分块，8.4 篇/s，预计剩余 0.4 分钟
+  800/800 篇，已写入 3684 分块，8.6 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 19200,
+  "indexed_documents": 20000,
+  "chunks_written": 3684,
+  "published": false,
+  "chunk_seconds": 0.07,
+  "index_seconds": 96.1,
+  "documents_per_second": 8.32
+}
+切块完成：800 篇 -> 4067 分块，用时 0.1s
+  200/800 篇，已写入 952 分块，7.4 篇/s，预计剩余 1.3 分钟
+  400/800 篇，已写入 2015 分块，7.7 篇/s，预计剩余 0.9 分钟
+  600/800 篇，已写入 3127 分块，7.6 篇/s，预计剩余 0.4 分钟
+  800/800 篇，已写入 4067 分块，7.9 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 20000,
+  "indexed_documents": 20800,
+  "chunks_written": 4067,
+  "published": false,
+  "chunk_seconds": 0.07,
+  "index_seconds": 103.87,
+  "documents_per_second": 7.7
+}
+切块完成：800 篇 -> 4350 分块，用时 0.1s
+  200/800 篇，已写入 1086 分块，6.5 篇/s，预计剩余 1.5 分钟
+  400/800 篇，已写入 2195 分块，6.1 篇/s，预计剩余 1.1 分钟
+  600/800 篇，已写入 3314 分块，6.0 篇/s，预计剩余 0.6 分钟
+  800/800 篇，已写入 4350 分块，6.2 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 20800,
+  "indexed_documents": 21600,
+  "chunks_written": 4350,
+  "published": false,
+  "chunk_seconds": 0.07,
+  "index_seconds": 133.01,
+  "documents_per_second": 6.01
+}
+切块完成：800 篇 -> 3953 分块，用时 0.1s
+  200/800 篇，已写入 1115 分块，6.1 篇/s，预计剩余 1.6 分钟
+  400/800 篇，已写入 2104 分块，6.5 篇/s，预计剩余 1.0 分钟
+  600/800 篇，已写入 3028 分块，6.8 篇/s，预计剩余 0.5 分钟
+  800/800 篇，已写入 3953 分块，6.8 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 21600,
+  "indexed_documents": 22400,
+  "chunks_written": 3953,
+  "published": false,
+  "chunk_seconds": 0.07,
+  "index_seconds": 120.66,
+  "documents_per_second": 6.63
+}
+切块完成：800 篇 -> 3772 分块，用时 0.1s
+  200/800 篇，已写入 1070 分块，6.2 篇/s，预计剩余 1.6 分钟
+  400/800 篇，已写入 1984 分块，6.7 篇/s，预计剩余 1.0 分钟
+  600/800 篇，已写入 2965 分块，6.5 篇/s，预计剩余 0.5 分钟
+  800/800 篇，已写入 3772 分块，6.8 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 22400,
+  "indexed_documents": 23200,
+  "chunks_written": 3772,
+  "published": false,
+  "chunk_seconds": 0.06,
+  "index_seconds": 120.51,
+  "documents_per_second": 6.64
+}
+切块完成：800 篇 -> 3544 分块，用时 0.1s
+  200/800 篇，已写入 880 分块，7.2 篇/s，预计剩余 1.4 分钟
+  400/800 篇，已写入 1789 分块，7.1 篇/s，预计剩余 0.9 分钟
+  600/800 篇，已写入 2668 分块，7.2 篇/s，预计剩余 0.5 分钟
+  800/800 篇，已写入 3544 分块，7.3 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 23200,
+  "indexed_documents": 24000,
+  "chunks_written": 3544,
+  "published": false,
+  "chunk_seconds": 0.07,
+  "index_seconds": 112.35,
+  "documents_per_second": 7.12
+}
+切块完成：800 篇 -> 4045 分块，用时 0.1s
+  200/800 篇，已写入 952 分块，6.8 篇/s，预计剩余 1.5 分钟
+  400/800 篇，已写入 1948 分块，6.7 篇/s，预计剩余 1.0 分钟
+  600/800 篇，已写入 2892 分块，6.7 篇/s，预计剩余 0.5 分钟
+  800/800 篇，已写入 4045 分块，6.3 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 24000,
+  "indexed_documents": 24800,
+  "chunks_written": 4045,
+  "published": false,
+  "chunk_seconds": 0.07,
+  "index_seconds": 129.53,
+  "documents_per_second": 6.18
+}
+切块完成：800 篇 -> 4523 分块，用时 0.1s
+  200/800 篇，已写入 1140 分块，5.5 篇/s，预计剩余 1.8 分钟
+  400/800 篇，已写入 2236 分块，5.8 篇/s，预计剩余 1.2 分钟
+  600/800 篇，已写入 3393 分块，5.7 篇/s，预计剩余 0.6 分钟
+  800/800 篇，已写入 4523 分块，6.0 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 24800,
+  "indexed_documents": 25600,
+  "chunks_written": 4523,
+  "published": false,
+  "chunk_seconds": 0.08,
+  "index_seconds": 136.58,
+  "documents_per_second": 5.86
+}
+切块完成：800 篇 -> 4468 分块，用时 0.1s
+  200/800 篇，已写入 1110 分块，5.9 篇/s，预计剩余 1.7 分钟
+  400/800 篇，已写入 2144 分块，6.0 篇/s，预计剩余 1.1 分钟
+  600/800 篇，已写入 3233 分块，6.0 篇/s，预计剩余 0.6 分钟
+  800/800 篇，已写入 4468 分块，5.8 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 25600,
+  "indexed_documents": 26400,
+  "chunks_written": 4468,
+  "published": false,
+  "chunk_seconds": 0.09,
+  "index_seconds": 139.91,
+  "documents_per_second": 5.72
+}
+切块完成：800 篇 -> 6280 分块，用时 0.1s
+  200/800 篇，已写入 1505 分块，5.5 篇/s，预计剩余 1.8 分钟
+  400/800 篇，已写入 3039 分块，5.4 篇/s，预计剩余 1.2 分钟
+  600/800 篇，已写入 4621 分块，5.1 篇/s，预计剩余 0.7 分钟
+  800/800 篇，已写入 6280 分块，4.9 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 26400,
+  "indexed_documents": 27200,
+  "chunks_written": 6280,
+  "published": false,
+  "chunk_seconds": 0.08,
+  "index_seconds": 168.28,
+  "documents_per_second": 4.75
+}
+切块完成：800 篇 -> 5826 分块，用时 0.1s
+  200/800 篇，已写入 1476 分块，3.6 篇/s，预计剩余 2.8 分钟
+  400/800 篇，已写入 3004 分块，3.7 篇/s，预计剩余 1.8 分钟
+  600/800 篇，已写入 4480 分块，3.8 篇/s，预计剩余 0.9 分钟
+  800/800 篇，已写入 5826 分块，4.0 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 27200,
+  "indexed_documents": 28000,
+  "chunks_written": 5826,
+  "published": false,
+  "chunk_seconds": 0.09,
+  "index_seconds": 205.26,
+  "documents_per_second": 3.9
+}
+切块完成：481 篇 -> 3152 分块，用时 0.1s
+  200/481 篇，已写入 1155 分块，5.4 篇/s，预计剩余 0.9 分钟
+  400/481 篇，已写入 2574 分块，5.0 篇/s，预计剩余 0.3 分钟
+  481/481 篇，已写入 3152 分块，4.9 篇/s，预计剩余 0.0 分钟
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 28000,
+  "indexed_documents": 28481,
+  "chunks_written": 3152,
+  "published": true,
+  "chunk_seconds": 0.07,
+  "index_seconds": 103.71,
+  "documents_per_second": 4.64
+}

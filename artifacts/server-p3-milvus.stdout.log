@@ -1,0 +1,8 @@
+INFO:     127.0.0.1:55262 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55262 - "POST /dev/token HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55262 - "GET /v1/index HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55262 - "GET /v1/evaluation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61132 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63249 - "POST /dev/token HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63249 - "GET /v1/index HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63249 - "GET /v1/evaluation HTTP/1.1" 200 OK

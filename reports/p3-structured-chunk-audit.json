@@ -1,0 +1,34 @@
+{
+  "chunking_version": "structured-parent-child-v1",
+  "index_version": "p3-techqa-28481-nemotron-1024-structured-v1",
+  "collection_alias": "enterprise_chunks_structured",
+  "documents": 28481,
+  "chunks": 82228,
+  "parents": 32219,
+  "chunks_per_document": 2.89,
+  "parents_per_document": 1.13,
+  "children_with_section_context": 0.9874,
+  "child_tokens": {
+    "p50": 268,
+    "p90": 378,
+    "p95": 381,
+    "p99": 383,
+    "max": 384,
+    "over_limit": 0
+  },
+  "parent_tokens": {
+    "p50": 554,
+    "p90": 1092,
+    "p95": 1168,
+    "p99": 1197,
+    "max": 1200,
+    "over_limit": 0
+  },
+  "gold_answer_capacity": {
+    "questions": 55,
+    "child_recall_at_least_0_6": 54,
+    "parent_recall_at_least_0_6": 55,
+    "minimum_child_recall": 0.566,
+    "minimum_parent_recall": 0.8491
+  }
+}

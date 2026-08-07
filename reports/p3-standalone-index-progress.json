@@ -1,0 +1,13 @@
+{
+  "version": "p3-techqa-28481-nemotron-1024-v3",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 28000,
+  "indexed_documents": 28481,
+  "chunks_written": 3152,
+  "published": true,
+  "chunk_seconds": 0.07,
+  "index_seconds": 103.71,
+  "documents_per_second": 4.64
+}

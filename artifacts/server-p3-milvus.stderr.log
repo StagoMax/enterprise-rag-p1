@@ -1,0 +1,9 @@
+INFO:     Started server process [33168]
+INFO:     Waiting for application startup.
+2026-07-28 22:58:11,191 [WARNING][__setup_ts_by_request]: failed to get mvccTs from milvus server, use client-side ts instead (iterator.py:326)
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+I0728 14:59:21.070800   21660 chttp2_transport.cc:1393] ipv4:127.0.0.1:54663: Got goaway [11] err=UNAVAILABLE:GOAWAY received; Error code: 11; Debug Text: too_many_pings {http2_error:11}
+E0728 14:59:21.073988   21660 chttp2_transport.cc:1425] ipv4:127.0.0.1:54663: Received a GOAWAY with error code ENHANCE_YOUR_CALM and debug data equal to "too_many_pings". Current keepalive time (before throttling): 10000ms
+I0728 15:01:55.293313   21660 chttp2_transport.cc:1393] ipv4:127.0.0.1:54663: Got goaway [11] err=UNAVAILABLE:GOAWAY received; Error code: 11; Debug Text: too_many_pings {http2_error:11}
+E0728 15:01:55.302600   21660 chttp2_transport.cc:1425] ipv4:127.0.0.1:54663: Received a GOAWAY with error code ENHANCE_YOUR_CALM and debug data equal to "too_many_pings". Current keepalive time (before throttling): 10000ms

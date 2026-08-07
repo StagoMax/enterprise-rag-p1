@@ -1,0 +1,27 @@
+{
+  "left_strategy": "replace",
+  "right_strategy": "weighted_rrf",
+  "questions": 55,
+  "recall_at_3": {
+    "both": 42,
+    "left_only": 4,
+    "right_only": 0,
+    "neither": 9
+  },
+  "top1": {
+    "both": 28,
+    "left_only": 12,
+    "right_only": 0,
+    "neither": 15
+  },
+  "metric_delta_right_minus_left": {
+    "semantic_rag_recall_at_3": -0.0728,
+    "semantic_rag_top1_citation_accuracy": -0.2182,
+    "answer_span_hit_rate_fitting": -0.05,
+    "answer_content_recall": -0.0362,
+    "mrr_at_3": -0.1485,
+    "ndcg_at_3": -0.1288
+  },
+  "latency_comparable": false,
+  "latency_note": "replace records external judgements while weighted_rrf replays them locally; run a separate uncached latency benchmark for deployment sizing"
+}

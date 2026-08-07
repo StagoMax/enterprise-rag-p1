@@ -1,0 +1,2060 @@
+{
+  "curation_version": "p3-gold-v2-2026-07-30",
+  "rows_total": 180,
+  "rows_scored": 175,
+  "rows_excluded": 5,
+  "status_counts": {
+    "ambiguous": 1,
+    "corrected": 2,
+    "excluded": 5,
+    "expanded": 1,
+    "verified": 171
+  },
+  "base_rows_total": 80,
+  "base_rows_scored": 75,
+  "base_rows_excluded": 5,
+  "base_status_counts": {
+    "ambiguous": 1,
+    "corrected": 2,
+    "excluded": 5,
+    "expanded": 1,
+    "verified": 71
+  },
+  "changed_rows": [
+    "rag-005",
+    "rag-006",
+    "rag-046",
+    "rag-052"
+  ],
+  "excluded_rows": [
+    {
+      "id": "rag-019",
+      "source_question_id": "TRAIN_Q058",
+      "original_expected_source_ids": [
+        "swg1PI37248"
+      ],
+      "reason": "The expected PI37248 document concerns PFBC parsing and contains no Portal 8.5 INSTCONFFAILED installation evidence. No corpus document establishes the full question-to-answer mapping."
+    },
+    {
+      "id": "rag-027",
+      "source_question_id": "TRAIN_Q092",
+      "original_expected_source_ids": [
+        "swg21268440"
+      ],
+      "reason": "The expected document is about SessionObjectSize NotSerializableException and does not contain the Decision Center IlrStorePolicy ClassCastException. No exact supporting document was found in the corpus."
+    },
+    {
+      "id": "rag-030",
+      "source_question_id": "TRAIN_Q103",
+      "original_expected_source_ids": [
+        "swg27050456"
+      ],
+      "reason": "The expected document is an OMEGAMON MQ Configuration Agent withdrawal notice and does not explain the KCIJPALO ABEND S013. No exact supporting document was found in the corpus."
+    },
+    {
+      "id": "rag-040",
+      "source_question_id": "TRAIN_Q124",
+      "original_expected_source_ids": [
+        "swg1PI37248"
+      ],
+      "reason": "The expected PI37248 document concerns PFBC parsing and does not contain the supplied Portal profile augmentation failure or portal01_create.log evidence. No exact supporting document was found in the corpus."
+    },
+    {
+      "id": "rag-054",
+      "source_question_id": "TRAIN_Q174",
+      "original_expected_source_ids": [
+        "swg21445801"
+      ],
+      "reason": "The expected document is a post-migration authoring-portlet issue, while the question asks about a blank/corrupted WCM syndicator 'Subscribe Now' popup. The corpus has a different syndicator error but no exact evidence for this symptom."
+    }
+  ],
+  "rows": [
+    {
+      "id": "rag-001",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q003",
+      "expected_source_ids": [
+        "swg21179559"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-002",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q007",
+      "expected_source_ids": [
+        "swg21636093"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-003",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q008",
+      "expected_source_ids": [
+        "swg21263677"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-004",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q012",
+      "expected_source_ids": [
+        "swg21648497"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-005",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "ambiguous",
+      "source_question_id": "TRAIN_Q015",
+      "expected_source_ids": [
+        "swg21998452",
+        "swg22003256",
+        "swg22009455",
+        "swg21979065",
+        "swg22007664"
+      ],
+      "notes": "The security bulletin is published as several near-identical Red Hat Linux advisory records; all five are evidence-equivalent for this question."
+    },
+    {
+      "id": "rag-006",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "expanded",
+      "source_question_id": "TRAIN_Q016",
+      "expected_source_ids": [
+        "swg21469413",
+        "swg21605502"
+      ],
+      "notes": "The original ulimit guidance is valid; a DASH/TIP-specific 'Too many open files' technote is an additional equivalent source."
+    },
+    {
+      "id": "rag-007",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q017",
+      "expected_source_ids": [
+        "swg27019359"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-008",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q018",
+      "expected_source_ids": [
+        "swg21611073"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-009",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q020",
+      "expected_source_ids": [
+        "swg24035040"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-010",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q027",
+      "expected_source_ids": [
+        "swg21611699"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-011",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q029",
+      "expected_source_ids": [
+        "swg21964202"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-012",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q030",
+      "expected_source_ids": [
+        "swg21406783"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-013",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q031",
+      "expected_source_ids": [
+        "swg21318593"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-014",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q039",
+      "expected_source_ids": [
+        "swg21660890"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-015",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q053",
+      "expected_source_ids": [
+        "swg21502037"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-016",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q054",
+      "expected_source_ids": [
+        "swg21660890"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-017",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q055",
+      "expected_source_ids": [
+        "swg21502037"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-018",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q056",
+      "expected_source_ids": [
+        "swg21445430"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-019",
+      "category": "rag",
+      "score_enabled": false,
+      "status": "excluded",
+      "source_question_id": "TRAIN_Q058",
+      "expected_source_ids": [
+        "swg1PI37248"
+      ],
+      "notes": "The expected PI37248 document concerns PFBC parsing and contains no Portal 8.5 INSTCONFFAILED installation evidence. No corpus document establishes the full question-to-answer mapping."
+    },
+    {
+      "id": "rag-020",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q064",
+      "expected_source_ids": [
+        "swg27045339"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-021",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q065",
+      "expected_source_ids": [
+        "swg21636533"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-022",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q067",
+      "expected_source_ids": [
+        "swg21451229"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-023",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q068",
+      "expected_source_ids": [
+        "swg21406783"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-024",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q072",
+      "expected_source_ids": [
+        "swg1PI34677"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-025",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q073",
+      "expected_source_ids": [
+        "swg21598779"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-026",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q083",
+      "expected_source_ids": [
+        "swg21634612"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-027",
+      "category": "rag",
+      "score_enabled": false,
+      "status": "excluded",
+      "source_question_id": "TRAIN_Q092",
+      "expected_source_ids": [
+        "swg21268440"
+      ],
+      "notes": "The expected document is about SessionObjectSize NotSerializableException and does not contain the Decision Center IlrStorePolicy ClassCastException. No exact supporting document was found in the corpus."
+    },
+    {
+      "id": "rag-028",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q097",
+      "expected_source_ids": [
+        "swg21067352"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-029",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q100",
+      "expected_source_ids": [
+        "swg24039742"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-030",
+      "category": "rag",
+      "score_enabled": false,
+      "status": "excluded",
+      "source_question_id": "TRAIN_Q103",
+      "expected_source_ids": [
+        "swg27050456"
+      ],
+      "notes": "The expected document is an OMEGAMON MQ Configuration Agent withdrawal notice and does not explain the KCIJPALO ABEND S013. No exact supporting document was found in the corpus."
+    },
+    {
+      "id": "rag-031",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q104",
+      "expected_source_ids": [
+        "swg21639375"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-032",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q107",
+      "expected_source_ids": [
+        "swg21163875"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-033",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q110",
+      "expected_source_ids": [
+        "swg21308281"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-034",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q112",
+      "expected_source_ids": [
+        "swg21624731"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-035",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q116",
+      "expected_source_ids": [
+        "swg21426787"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-036",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q117",
+      "expected_source_ids": [
+        "swg21695094"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-037",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q118",
+      "expected_source_ids": [
+        "swg27023910"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-038",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q120",
+      "expected_source_ids": [
+        "swg21512291"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-039",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q123",
+      "expected_source_ids": [
+        "swg21639375"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-040",
+      "category": "rag",
+      "score_enabled": false,
+      "status": "excluded",
+      "source_question_id": "TRAIN_Q124",
+      "expected_source_ids": [
+        "swg1PI37248"
+      ],
+      "notes": "The expected PI37248 document concerns PFBC parsing and does not contain the supplied Portal profile augmentation failure or portal01_create.log evidence. No exact supporting document was found in the corpus."
+    },
+    {
+      "id": "rag-041",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q125",
+      "expected_source_ids": [
+        "swg21162896"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-042",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q127",
+      "expected_source_ids": [
+        "swg21292808"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-043",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q131",
+      "expected_source_ids": [
+        "swg21994039"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-044",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q134",
+      "expected_source_ids": [
+        "swg21600618"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-045",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q135",
+      "expected_source_ids": [
+        "swg21497604"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-046",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "corrected",
+      "source_question_id": "TRAIN_Q141",
+      "expected_source_ids": [
+        "swg21659259",
+        "swg21244384"
+      ],
+      "notes": "The original reinitialize technote is the referenced procedure, while the downgrade technote states the supported major-release rule and the required license precaution."
+    },
+    {
+      "id": "rag-047",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q145",
+      "expected_source_ids": [
+        "swg21618139"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-048",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q150",
+      "expected_source_ids": [
+        "swg1PI34677"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-049",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q151",
+      "expected_source_ids": [
+        "swg21612222"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-050",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q158",
+      "expected_source_ids": [
+        "swg22002443"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-051",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q161",
+      "expected_source_ids": [
+        "swg21249798"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-052",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "corrected",
+      "source_question_id": "TRAIN_Q165",
+      "expected_source_ids": [
+        "swg24043474",
+        "swg1PI73197"
+      ],
+      "notes": "The original answer predates the PI73197 fix. The corpus contains both the downloadable fix record and the APAR record that directly answer the 8.5.5.9-or-later question."
+    },
+    {
+      "id": "rag-053",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q166",
+      "expected_source_ids": [
+        "swg21192604"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-054",
+      "category": "rag",
+      "score_enabled": false,
+      "status": "excluded",
+      "source_question_id": "TRAIN_Q174",
+      "expected_source_ids": [
+        "swg21445801"
+      ],
+      "notes": "The expected document is a post-migration authoring-portlet issue, while the question asks about a blank/corrupted WCM syndicator 'Subscribe Now' popup. The corpus has a different syndicator error but no exact evidence for this symptom."
+    },
+    {
+      "id": "rag-055",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q184",
+      "expected_source_ids": [
+        "swg21701478"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-056",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q199",
+      "expected_source_ids": [
+        "swg21397335"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-057",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q201",
+      "expected_source_ids": [
+        "swg21365841"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-058",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q203",
+      "expected_source_ids": [
+        "swg21269136"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-059",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q207",
+      "expected_source_ids": [
+        "swg24041563"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-060",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q217",
+      "expected_source_ids": [
+        "swg21255545"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "exact-001",
+      "category": "exact_search",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg21179559"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "exact-002",
+      "category": "exact_search",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg21636093"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "exact-003",
+      "category": "exact_search",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg21263677"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "exact-004",
+      "category": "exact_search",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg21515420"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "exact-005",
+      "category": "exact_search",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg21648497"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "exact-006",
+      "category": "exact_search",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg21998452"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "exact-007",
+      "category": "exact_search",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg21469413"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "exact-008",
+      "category": "exact_search",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg27019359"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "exact-009",
+      "category": "exact_search",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg21611073"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "exact-010",
+      "category": "exact_search",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg24035040"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "exact-011",
+      "category": "exact_search",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg21611699"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "exact-012",
+      "category": "exact_search",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg22011689"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "exact-013",
+      "category": "exact_search",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg21964202"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "exact-014",
+      "category": "exact_search",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg21406783"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "exact-015",
+      "category": "exact_search",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg21318593"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "exact-016",
+      "category": "exact_search",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg21660890"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "exact-017",
+      "category": "exact_search",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg22005055"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "exact-018",
+      "category": "exact_search",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg21998655"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "exact-019",
+      "category": "exact_search",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg22012345"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "exact-020",
+      "category": "exact_search",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg21502037"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "tool-001",
+      "category": "tool",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "demo-sales-db"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "tool-002",
+      "category": "tool",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "demo-sales-db"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "tool-003",
+      "category": "tool",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "demo-sales-db"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "tool-004",
+      "category": "tool",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "demo-sales-db"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "tool-005",
+      "category": "tool",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "demo-sales-db"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "tool-006",
+      "category": "tool",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "demo-sales-db"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "tool-007",
+      "category": "tool",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "demo-sales-db"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "tool-008",
+      "category": "tool",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "demo-sales-db"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "tool-009",
+      "category": "tool",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "demo-sales-db"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "tool-010",
+      "category": "tool",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "demo-sales-db"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "tool-011",
+      "category": "tool",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "demo-sales-db"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "tool-012",
+      "category": "tool",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "demo-sales-db"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "tool-013",
+      "category": "tool",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "demo-sales-db"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "tool-014",
+      "category": "tool",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "demo-sales-db"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "tool-015",
+      "category": "tool",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "demo-sales-db"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "tool-016",
+      "category": "tool",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "demo-sales-db"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "tool-017",
+      "category": "tool",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "demo-sales-db"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "tool-018",
+      "category": "tool",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "demo-sales-db"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "tool-019",
+      "category": "tool",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "demo-sales-db"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "tool-020",
+      "category": "tool",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "demo-sales-db"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "acl-001",
+      "category": "unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [],
+      "notes": ""
+    },
+    {
+      "id": "acl-002",
+      "category": "unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [],
+      "notes": ""
+    },
+    {
+      "id": "acl-003",
+      "category": "unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [],
+      "notes": ""
+    },
+    {
+      "id": "acl-004",
+      "category": "unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [],
+      "notes": ""
+    },
+    {
+      "id": "acl-005",
+      "category": "unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [],
+      "notes": ""
+    },
+    {
+      "id": "acl-006",
+      "category": "unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [],
+      "notes": ""
+    },
+    {
+      "id": "acl-007",
+      "category": "unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [],
+      "notes": ""
+    },
+    {
+      "id": "acl-008",
+      "category": "unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [],
+      "notes": ""
+    },
+    {
+      "id": "acl-009",
+      "category": "unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [],
+      "notes": ""
+    },
+    {
+      "id": "acl-010",
+      "category": "unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [],
+      "notes": ""
+    },
+    {
+      "id": "no-evidence-001",
+      "category": "no_evidence",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [],
+      "notes": ""
+    },
+    {
+      "id": "no-evidence-002",
+      "category": "no_evidence",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [],
+      "notes": ""
+    },
+    {
+      "id": "no-evidence-003",
+      "category": "no_evidence",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [],
+      "notes": ""
+    },
+    {
+      "id": "no-evidence-004",
+      "category": "no_evidence",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [],
+      "notes": ""
+    },
+    {
+      "id": "no-evidence-005",
+      "category": "no_evidence",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [],
+      "notes": ""
+    },
+    {
+      "id": "no-evidence-006",
+      "category": "no_evidence",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [],
+      "notes": ""
+    },
+    {
+      "id": "no-evidence-007",
+      "category": "no_evidence",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [],
+      "notes": ""
+    },
+    {
+      "id": "no-evidence-008",
+      "category": "no_evidence",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [],
+      "notes": ""
+    },
+    {
+      "id": "no-evidence-009",
+      "category": "no_evidence",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [],
+      "notes": ""
+    },
+    {
+      "id": "no-evidence-010",
+      "category": "no_evidence",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [],
+      "notes": ""
+    },
+    {
+      "id": "graph-001",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "ibm10717789",
+        "swg24040290"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-002",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "ibm10717815",
+        "swg24041476"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-003",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "ibm10718243",
+        "swg21672316"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-004",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "ibm10718719",
+        "swg27051104"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-005",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "ibm10719211",
+        "swg24044985"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-006",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "isg3T1023296",
+        "swg21975404"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-007",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "isg3T1024513",
+        "swg21294023"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-008",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "nas8N1020267",
+        "swg21685433"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-009",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "nas8N1020471",
+        "swg21693142"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-010",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "nas8N1022521",
+        "swg22014064"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-011",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HC94741",
+        "swg1HC89115"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-012",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HD50575",
+        "swg1HD50574"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-013",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HD50577",
+        "swg1HD50574"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-014",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HD60021",
+        "swg1HD60019"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-015",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HD60023",
+        "swg1HD60019"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-016",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HD60024",
+        "swg1HD60019"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-017",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12015",
+        "swg24037306"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-018",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12022",
+        "swg24037306"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-019",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12035",
+        "swg24037306"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-020",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12036",
+        "swg24037306"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-021",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12127",
+        "swg27042922"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-022",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12262",
+        "swg1HE12453"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-023",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12287",
+        "swg1HE12359"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-024",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12290",
+        "swg1HE12456"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-025",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12332",
+        "swg1HE12468"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-026",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12351",
+        "swg1HE12472"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-027",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12385",
+        "swg24042026"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-028",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12394",
+        "swg1HE12474"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-029",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12438",
+        "swg24042026"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-030",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12524",
+        "swg21978855"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-031",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12666",
+        "swg1HE12698"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-032",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12698",
+        "swg1HE12666"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-033",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1IC50659",
+        "swg1PK42462"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-034",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1IC52886",
+        "swg24017102"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-035",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1IC53619",
+        "swg27006041"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-036",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1IC62564",
+        "swg1IZ43719"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-037",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1IC62793",
+        "swg1IZ52819"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-038",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1IC62929",
+        "swg1IC66422"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-039",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1IC63558",
+        "swg1IT09905"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-040",
+      "category": "graph_rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1IC63983",
+        "swg1IZ50667"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-acl-001",
+      "category": "graph_unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "ibm10717789"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-acl-002",
+      "category": "graph_unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "isg3T1026451"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-acl-003",
+      "category": "graph_unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12045"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-acl-004",
+      "category": "graph_unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12059"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-acl-005",
+      "category": "graph_unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12307"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-acl-006",
+      "category": "graph_unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12363"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-acl-007",
+      "category": "graph_unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12375"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-acl-008",
+      "category": "graph_unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12383"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-acl-009",
+      "category": "graph_unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12390"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-acl-010",
+      "category": "graph_unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12421"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-acl-011",
+      "category": "graph_unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12422"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-acl-012",
+      "category": "graph_unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12424"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-acl-013",
+      "category": "graph_unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12427"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-acl-014",
+      "category": "graph_unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12439"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-acl-015",
+      "category": "graph_unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12440"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-acl-016",
+      "category": "graph_unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12485"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-acl-017",
+      "category": "graph_unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12488"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-acl-018",
+      "category": "graph_unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12490"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-acl-019",
+      "category": "graph_unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1HE12495"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "graph-acl-020",
+      "category": "graph_unauthorized",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": null,
+      "expected_source_ids": [
+        "swg1IC49232"
+      ],
+      "notes": ""
+    }
+  ]
+}
