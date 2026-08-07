@@ -4,17 +4,55 @@ import pytest
 
 from enterprise_rag.chunking import build_document, chunk_document
 from enterprise_rag.embeddings import HashingEmbeddingProvider
-from enterprise_rag.models import DocumentInput, DocumentStatus
+from enterprise_rag.models import Chunk, DocumentInput, DocumentStatus, SearchHit
+from enterprise_rag.retrieval import feature_search_text, select_distinct_documents
 from enterprise_rag.vector_store import (
+    _RecallBranch,
     build_acl_expression,
+    encode_role_keys,
     encode_roles,
     is_embedded_uri,
+    validate_document_id,
     validate_role,
 )
 
 pymilvus = pytest.importorskip("pymilvus")
 
 from enterprise_rag.vector_store import MilvusHybridStore  # noqa: E402
+
+
+def test_document_selection_keeps_highest_scoring_chunk_per_document():
+    from enterprise_rag.models import Chunk, SearchHit
+
+    def hit(document_id: str, position: int, score: float) -> SearchHit:
+        return SearchHit(
+            chunk=Chunk(
+                chunk_id=f"{document_id}:1.0:{position}",
+                document_id=document_id,
+                title=document_id,
+                content="content",
+                position=position,
+                anchor=f"chunk-{position}",
+                allowed_roles=frozenset({"engineering"}),
+                version="1.0",
+                status=DocumentStatus.ACTIVE,
+                business_class="test",
+            ),
+            score=score,
+            lexical_score=score,
+            dense_score=score,
+        )
+
+    selected = select_distinct_documents(
+        [
+            hit("document-a", 0, 0.99),
+            hit("document-a", 1, 0.98),
+            hit("document-b", 0, 0.8),
+        ],
+        top_k=2,
+    )
+
+    assert [item.chunk.document_id for item in selected] == ["document-a", "document-b"]
 
 
 def make_documents() -> list[DocumentInput]:
@@ -101,6 +139,25 @@ def test_role_encoding_prevents_prefix_collisions():
     assert "|engineering|" in encoded
 
 
+def test_encoded_role_keys_remove_like_wildcards():
+    encoded = encode_role_keys({"restr_cted", "engineering"})
+    expression = build_acl_expression(
+        frozenset({"restr_cted"}),
+        tenant_id="demo",
+        encoded_roles=True,
+    )
+
+    assert "_" not in encoded
+    assert 'roles_key like "%|72657374725f63746564|%"' in expression
+    assert "roles_text" not in expression
+
+
+def test_document_id_validation_rejects_filter_injection():
+    assert validate_document_id("swg21636093:1.0") == "swg21636093:1.0"
+    with pytest.raises(ValueError):
+        validate_document_id('eng-1"] or status == "active')
+
+
 def test_embedded_backend_does_not_index_sparse_field(tmp_path):
     """回归：milvus-lite 给 BM25 稀疏字段建索引会在规模上来后让 load_collection 直接失败。
 
@@ -157,6 +214,113 @@ def test_hybrid_search_never_leaks_unauthorized_chunks(store):
     assert leaked == [], f"越权泄漏：{[hit.chunk.document_id for hit in leaked]}"
 
 
+def test_fielded_schema_and_native_hybrid_enforce_acl(store, tmp_path):
+    assert {
+        "title_text",
+        "feature_text",
+        "title_sparse",
+        "feature_sparse",
+    } <= store._field_names(store._alias)
+
+    native = MilvusHybridStore(
+        HashingEmbeddingProvider(dimensions=64),
+        uri=str(tmp_path / "milvus" / "test.db"),
+        collection="test_chunks",
+        dense_weight=0.5,
+        query_rewrite_enabled=True,
+        fielded_search_enabled=True,
+        search_mode="native_rrf",
+    )
+    native.rollback("v1")
+    hits = native.search(
+        "vpn certificate topology restricted",
+        frozenset({"engineering"}),
+        top_k=10,
+    )
+
+    assert hits
+    assert all("engineering" in hit.chunk.allowed_roles for hit in hits)
+
+
+def test_native_hybrid_places_acl_filter_on_every_request():
+    store = object.__new__(MilvusHybridStore)
+    store._hybrid_rrf_k = 60
+    captured = {}
+
+    class Client:
+        def hybrid_search(self, collection, requests, **kwargs):
+            captured["collection"] = collection
+            captured["requests"] = requests
+            captured["kwargs"] = kwargs
+            return [[]]
+
+    store._client = Client()
+    store._alias = "chunks"
+    expression = build_acl_expression(frozenset({"engineering"}), tenant_id="demo")
+    rows = store._native_hybrid_hits(
+        "query",
+        [
+            _RecallBranch([0.0, 1.0], "dense", "IP", 1.0),
+            _RecallBranch("query", "sparse", "BM25", 1.0),
+        ],
+        expression,
+        5,
+        frozenset({"engineering"}),
+        "demo",
+    )
+
+    assert rows == []
+    assert [request.expr for request in captured["requests"]] == [expression, expression]
+    assert "filter" not in captured["kwargs"]
+    assert captured["kwargs"]["limit"] == 10
+
+
+def test_tenant_is_enforced_at_request_and_result_boundaries(store):
+    assert store.search(
+        "vpn",
+        frozenset({"engineering"}),
+        tenant_id="other-tenant",
+    ) == []
+    assert store.search("vpn", frozenset({"engineering"}), tenant_id="") == []
+    row = {
+        "entity": {
+            "status": "active",
+            "allowed_roles": ["engineering"],
+            "tenant_id": "other-tenant",
+        }
+    }
+    assert store._guard([row], frozenset({"engineering"}), "demo") == []
+
+
+def test_title_and_feature_sparse_fields_are_searchable(store):
+    expression = build_acl_expression(frozenset({"engineering"}), tenant_id="demo")
+    title_rows = store._branch(
+        "engineering runbook",
+        "title_sparse",
+        "BM25",
+        expression,
+        20,
+        frozenset({"engineering"}),
+        "demo",
+    )
+    restricted_expression = build_acl_expression(
+        frozenset({"restricted"}), tenant_id="demo"
+    )
+    feature_rows = store._branch(
+        feature_search_text("VPN-401"),
+        "feature_sparse",
+        "BM25",
+        restricted_expression,
+        20,
+        frozenset({"restricted"}),
+        "demo",
+    )
+
+    assert title_rows
+    assert feature_rows
+    assert all(row["entity"]["document_id"].startswith("restricted-") for row in feature_rows)
+
+
 def test_exact_search_also_enforces_acl(store):
     hits = store.search(
         "VPN-401 certificate",
@@ -171,6 +335,14 @@ def test_restricted_role_sees_only_restricted(store):
     hits = store.search("vpn certificate topology", frozenset({"restricted"}), top_k=10)
     assert hits
     assert all("restricted" in hit.chunk.allowed_roles for hit in hits)
+
+
+def test_role_underscore_is_not_treated_as_like_wildcard(store):
+    assert store.search(
+        "vpn certificate topology",
+        frozenset({"restr_cted"}),
+        top_k=10,
+    ) == []
 
 
 def test_unknown_role_gets_nothing(store):
@@ -195,6 +367,75 @@ def test_empty_candidate_set_returns_nothing(store):
         candidate_document_ids=set(),
     )
     assert hits == []
+
+
+@pytest.mark.parametrize("search_mode", ["separate", "native_rrf"])
+def test_candidate_restriction_rejects_expression_injection(store, search_mode):
+    store._search_mode = search_mode
+    with pytest.raises(ValueError):
+        store.search(
+            "certificate",
+            frozenset({"engineering"}),
+            candidate_document_ids={'eng-1"] or status == "active'},
+        )
+
+
+@pytest.mark.parametrize(
+    ("retrieval_method", "exact"),
+    [("_hybrid_hits", False), ("_exact_hits", True)],
+)
+def test_candidate_restriction_is_rechecked_after_retrieval(
+    store,
+    monkeypatch,
+    retrieval_method,
+    exact,
+):
+    def hit(document_id: str) -> SearchHit:
+        return SearchHit(
+            chunk=Chunk(
+                chunk_id=f"{document_id}:1.0:0",
+                document_id=document_id,
+                title=document_id,
+                content="certificate enrollment",
+                position=0,
+                anchor="chunk-0",
+                allowed_roles=frozenset({"engineering"}),
+                version="1.0",
+                status=DocumentStatus.ACTIVE,
+                business_class="test",
+            ),
+            score=1.0,
+            lexical_score=1.0,
+            dense_score=1.0,
+        )
+
+    monkeypatch.setattr(
+        store,
+        retrieval_method,
+        lambda *args, **kwargs: [hit("eng-2"), hit("eng-1")],
+    )
+
+    hits = store.search(
+        "certificate",
+        frozenset({"engineering"}),
+        top_k=5,
+        exact=exact,
+        candidate_document_ids={"eng-1"},
+    )
+
+    assert [item.chunk.document_id for item in hits] == ["eng-1"]
+
+
+def test_model_document_ids_reject_filter_metacharacters():
+    with pytest.raises(ValueError):
+        DocumentInput(
+            document_id='eng-1"]',
+            title="Unsafe",
+            content="Unsafe identifier",
+            owner="security",
+            business_class="test",
+            allowed_roles={"engineering"},
+        )
 
 
 def test_document_metadata_and_counts(store):
@@ -242,6 +483,42 @@ def test_version_survives_process_restart(store, tmp_path):
     hits = reopened.search("certificate enrollment", frozenset({"engineering"}), top_k=3)
     assert hits
     assert all("engineering" in hit.chunk.allowed_roles for hit in hits)
+    assert all(hit.chunk.parent_id for hit in hits)
+    assert all(hit.chunk.parent_content for hit in hits)
+    assert all(hit.chunk.chunking_version == "structured-parent-child-v1" for hit in hits)
+
+
+def test_unpublished_version_can_resume_before_alias_switch(tmp_path):
+    store = MilvusHybridStore(
+        HashingEmbeddingProvider(dimensions=64),
+        uri=str(tmp_path / "milvus" / "resume.db"),
+        collection="resume_chunks",
+    )
+    documents = [build_document(item) for item in make_documents()[-2:]]
+    items = [(document, chunk_document(document)) for document in documents]
+
+    store.begin_unpublished_version("v1")
+    store.append_unpublished_documents("v1", items[:1])
+    assert store.unpublished_document_ids("v1") == {documents[0].document_id}
+    assert store.is_version_published("v1") is False
+    with pytest.raises(ValueError, match="incomplete"):
+        store.publish_unpublished_version(
+            "v1",
+            expected_document_ids={document.document_id for document in documents},
+        )
+
+    store.append_unpublished_documents("v1", items[1:])
+    assert store.version_chunk_count("v1") == sum(len(chunks) for _, chunks in items)
+    store.publish_unpublished_version(
+        "v1",
+        expected_document_ids={document.document_id for document in documents},
+    )
+
+    assert store.active_version == "v1"
+    assert store.is_version_published("v1") is True
+    assert store.document_ids() == {document.document_id for document in documents}
+    with pytest.raises(ValueError, match="published"):
+        store.append_unpublished_documents("v1", items[:1])
 
 
 def test_expired_documents_are_not_retrievable(tmp_path):

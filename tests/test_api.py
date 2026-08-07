@@ -1,3 +1,6 @@
+from datetime import UTC, datetime, timedelta
+
+import jwt
 from fastapi.testclient import TestClient
 
 from tests.conftest import auth_header
@@ -19,6 +22,65 @@ def test_workbench_and_health_are_available(client: TestClient) -> None:
 
 def test_query_requires_signed_identity(client: TestClient) -> None:
     response = client.post("/v1/query", json={"question": "VPN 如何接入？"})
+    assert response.status_code == 401
+
+
+def test_empty_or_missing_tenant_is_rejected(client: TestClient) -> None:
+    invalid_request = client.post(
+        "/dev/token",
+        json={"subject": "test", "roles": ["engineering"], "tenant_id": ""},
+    )
+    assert invalid_request.status_code == 422
+
+    settings = client.app.state.settings
+    now = datetime.now(UTC)
+    token = jwt.encode(
+        {
+            "sub": "test",
+            "roles": ["engineering"],
+            "iss": settings.jwt_issuer,
+            "aud": settings.jwt_audience,
+            "iat": now,
+            "exp": now + timedelta(minutes=5),
+        },
+        settings.jwt_secret,
+        algorithm="HS256",
+    )
+    response = client.post(
+        "/v1/query",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"question": "VPN"},
+    )
+    assert response.status_code == 401
+
+
+def test_invalid_role_claims_are_rejected(client: TestClient) -> None:
+    invalid_request = client.post(
+        "/dev/token",
+        json={"subject": "test", "roles": ["engineering\nrestricted"]},
+    )
+    assert invalid_request.status_code == 422
+
+    settings = client.app.state.settings
+    now = datetime.now(UTC)
+    token = jwt.encode(
+        {
+            "sub": "test",
+            "roles": ["engineering\n"],
+            "tenant_id": "demo",
+            "iss": settings.jwt_issuer,
+            "aud": settings.jwt_audience,
+            "iat": now,
+            "exp": now + timedelta(minutes=5),
+        },
+        settings.jwt_secret,
+        algorithm="HS256",
+    )
+    response = client.post(
+        "/v1/query",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"question": "VPN"},
+    )
     assert response.status_code == 401
 
 

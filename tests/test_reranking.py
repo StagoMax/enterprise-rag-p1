@@ -1,5 +1,6 @@
 import httpx
 import numpy as np
+import pytest
 
 from enterprise_rag.llm import OpenAiCompatibleChatModel
 from enterprise_rag.reranking import LlmReranker, parse_ranking
@@ -52,6 +53,8 @@ def test_reranker_reorders_by_model_output():
     scores = reranker.score("问题", ["A", "B", "C"])
     assert order_of(scores) == [2, 0, 1]
     assert reranker.last_degraded is False
+    assert reranker.call_count == 1
+    assert reranker.degraded_count == 0
 
 
 def test_reranker_keeps_original_order_when_llm_unavailable():
@@ -61,6 +64,8 @@ def test_reranker_keeps_original_order_when_llm_unavailable():
     assert order_of(scores) == [0, 1, 2]
     assert reranker.last_degraded is True
     assert reranker.last_error
+    assert reranker.call_count == 1
+    assert reranker.degraded_count == 1
 
 
 def test_reranker_keeps_original_order_on_unparseable_output():
@@ -68,6 +73,34 @@ def test_reranker_keeps_original_order_on_unparseable_output():
     scores = reranker.score("问题", ["A", "B", "C"])
     assert order_of(scores) == [0, 1, 2]
     assert reranker.last_degraded is True
+    assert reranker.call_count == 1
+    assert reranker.degraded_count == 1
+
+
+def test_reranker_record_fails_fast_when_llm_unavailable(tmp_path):
+    cache_path = tmp_path / "reranker.jsonl"
+    reranker = LlmReranker(
+        model_returning("", status=503),
+        cache_mode="record",
+        cache_path=cache_path,
+    )
+
+    with pytest.raises(RuntimeError, match="incomplete A/B cache"):
+        reranker.score("question", ["A", "B"])
+    assert cache_path.read_text(encoding="utf-8") == ""
+
+
+def test_reranker_record_fails_fast_on_unparseable_output(tmp_path):
+    cache_path = tmp_path / "reranker.jsonl"
+    reranker = LlmReranker(
+        model_returning("not a ranking"),
+        cache_mode="record",
+        cache_path=cache_path,
+    )
+
+    with pytest.raises(RuntimeError, match="invalid ranking"):
+        reranker.score("question", ["A", "B"])
+    assert cache_path.read_text(encoding="utf-8") == ""
 
 
 def test_reranker_handles_empty_and_single_candidate():
@@ -111,3 +144,166 @@ def test_reranker_satisfies_store_protocol_contract():
     reranker = LlmReranker(model_returning("[2,1,3,4,5]"))
     documents = [f"doc {index}" for index in range(5)]
     assert reranker.score("q", documents).shape == (5,)
+
+
+def test_reranker_record_and_replay_use_identical_judgements(tmp_path):
+    cache_path = tmp_path / "reranker.jsonl"
+    documents = ["A", "B", "C"]
+    recorder = LlmReranker(
+        model_returning("[3,1,2]"),
+        cache_mode="record",
+        cache_path=cache_path,
+        cache_namespace="model-and-prompt-v1",
+    )
+    recorded = recorder.score("question", documents)
+
+    replay = LlmReranker(
+        model_returning("[1,2,3]"),
+        cache_mode="replay",
+        cache_path=cache_path,
+        cache_namespace="model-and-prompt-v1",
+    )
+    replayed = replay.score("question", documents)
+
+    assert np.array_equal(recorded, replayed)
+    assert recorder.external_call_count == 1
+    assert replay.external_call_count == 0
+    assert replay.cache_hit_count == 1
+    assert recorder.judgement_digest == replay.judgement_digest
+
+
+def test_reranker_record_and_replay_validate_empty_and_single_candidates(tmp_path):
+    cache_path = tmp_path / "reranker.jsonl"
+    recorder = LlmReranker(
+        model_returning("[1]"),
+        cache_mode="record",
+        cache_path=cache_path,
+    )
+    recorded = [
+        recorder.score("empty", []),
+        recorder.score("single", ["only"]),
+    ]
+    replay = LlmReranker(
+        model_returning("[1]"),
+        cache_mode="replay",
+        cache_path=cache_path,
+    )
+    replayed = [
+        replay.score("empty", []),
+        replay.score("single", ["only"]),
+    ]
+
+    assert all(
+        np.array_equal(left, right)
+        for left, right in zip(recorded, replayed, strict=True)
+    )
+    assert recorder.call_count == replay.call_count == 2
+    assert recorder.deterministic_call_count == 2
+    assert recorder.external_call_count == 0
+    assert replay.cache_hit_count == 2
+    assert recorder.judgement_digest == replay.judgement_digest
+
+
+def test_reranker_record_reuses_duplicate_judgement(tmp_path):
+    cache_path = tmp_path / "reranker.jsonl"
+    recorder = LlmReranker(
+        model_returning("[2,1]"),
+        cache_mode="record",
+        cache_path=cache_path,
+    )
+
+    first = recorder.score("question", ["A", "B"])
+    second = recorder.score("question", ["A", "B"])
+
+    assert np.array_equal(first, second)
+    assert recorder.call_count == 2
+    assert recorder.external_call_count == 1
+    assert recorder.cache_hit_count == 1
+    assert len(cache_path.read_text(encoding="utf-8").splitlines()) == 1
+
+
+def test_reranker_record_resumes_a_partial_cache(tmp_path):
+    cache_path = tmp_path / "reranker.jsonl"
+    first = LlmReranker(
+        model_returning("[2,1]"),
+        cache_mode="record",
+        cache_path=cache_path,
+    )
+    expected = first.score("question", ["A", "B"])
+
+    resumed = LlmReranker(
+        model_returning("[1,2]"),
+        cache_mode="record",
+        cache_path=cache_path,
+    )
+    actual = resumed.score("question", ["A", "B"])
+
+    assert np.array_equal(actual, expected)
+    assert resumed.external_call_count == 0
+    assert resumed.cache_hit_count == 1
+    assert len(cache_path.read_text(encoding="utf-8").splitlines()) == 1
+
+
+def test_reranker_replay_rejects_conflicting_duplicate_cache_rows(tmp_path):
+    cache_path = tmp_path / "reranker.jsonl"
+    cache_path.write_text(
+        '{"key":"same","scores":[2.0,1.0]}\n'
+        '{"key":"same","scores":[1.0,2.0]}\n',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="conflicting rows"):
+        LlmReranker(
+            model_returning("[1,2]"),
+            cache_mode="replay",
+            cache_path=cache_path,
+        )
+
+
+def test_reranker_counts_http_attempts_separately_from_logical_calls():
+    attempts = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            return httpx.Response(503, json={"error": "busy"})
+        return httpx.Response(200, json={"choices": [{"message": {"content": "[2,1]"}}]})
+
+    model = OpenAiCompatibleChatModel(
+        base_url="http://llm.test/v1",
+        api_key="k",
+        model="m",
+        max_retries=1,
+        disable_thinking=False,
+        client=httpx.Client(
+            transport=httpx.MockTransport(handler),
+            base_url="http://llm.test/v1",
+        ),
+    )
+    reranker = LlmReranker(model)
+
+    reranker.score("question", ["A", "B"])
+
+    assert reranker.external_call_count == 1
+    assert reranker.http_attempt_count == 2
+
+
+def test_reranker_replay_fails_when_candidates_or_namespace_change(tmp_path):
+    cache_path = tmp_path / "reranker.jsonl"
+    recorder = LlmReranker(
+        model_returning("[2,1]"),
+        cache_mode="record",
+        cache_path=cache_path,
+        cache_namespace="v1",
+    )
+    recorder.score("question", ["A", "B"])
+    replay = LlmReranker(
+        model_returning("[1,2]"),
+        cache_mode="replay",
+        cache_path=cache_path,
+        cache_namespace="v2",
+    )
+
+    with pytest.raises(RuntimeError, match="cache miss"):
+        replay.score("question", ["A", "B"])

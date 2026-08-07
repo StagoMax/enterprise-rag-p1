@@ -4,6 +4,7 @@ import pytest
 from enterprise_rag.answering import (
     CitationConstrainedAnswerGenerator,
     EvidenceAnswerGenerator,
+    select_excerpt,
 )
 from enterprise_rag.llm import (
     LlmUnavailableError,
@@ -108,6 +109,7 @@ def test_retries_then_succeeds_on_transient_503():
     model = build_model(handler, max_retries=2, disable_thinking=False)
     assert model.complete("sys", "user") == "恢复后的答案"
     assert len(attempts) == 2
+    assert model.request_count == 2
 
 
 def test_persistent_failure_raises_unavailable():
@@ -131,6 +133,24 @@ def test_non_retryable_error_raises_immediately():
     with pytest.raises(LlmUnavailableError):
         model.complete("sys", "user")
     assert len(attempts) == 1
+
+
+def test_structured_provider_error_is_preserved_for_diagnosis():
+    model = build_model(
+        lambda request: httpx.Response(
+            403,
+            json={
+                "error": {
+                    "code": "insufficient_user_quota",
+                    "message": "quota exhausted",
+                }
+            },
+        ),
+        disable_thinking=False,
+    )
+
+    with pytest.raises(LlmUnavailableError, match="insufficient_user_quota"):
+        model.complete("sys", "user")
 
 
 def test_thinking_only_response_is_treated_as_unavailable():
@@ -179,6 +199,116 @@ def test_generator_sends_numbered_evidence_and_redacts_restricted():
     assert "[受限引用已隐藏]" in prompt
 
 
+def test_redaction_preserves_authorized_text_surrounding_a_restricted_id():
+    content = "Oracle 11gR2 is supported; details are in restricted-topology."
+
+    safe = EvidenceAnswerGenerator.redact_restricted_references(
+        content,
+        frozenset({"restricted-topology"}),
+    )
+
+    assert "Oracle 11gR2 is supported" in safe
+    assert "restricted-topology" not in safe
+    assert "[受限引用已隐藏]" in safe
+
+
 def test_extractive_generator_still_available_as_baseline():
     answer = EvidenceAnswerGenerator().answer("问题", [make_hit()])
     assert "根据当前已授权知识" in answer
+
+
+def test_question_aware_excerpt_selects_late_matching_evidence():
+    content = (
+        "General release notes and unrelated setup details. " * 20
+        + "The remediation is to install fix pack FP-42 and restart the server."
+    )
+
+    excerpt = select_excerpt("Which fix pack remediates the issue?", content, limit=90)
+
+    assert "FP-42" in excerpt
+    assert excerpt.endswith("restart the server.")
+
+
+def test_excerpt_prefers_focused_answer_over_verbose_reference() -> None:
+    content = (
+        "For Linux WebSphere ulimit settings, refer to the detailed Linux WebSphere "
+        "ulimit settings guide at https://example.test/docs/ulimit with additional "
+        "background and operating-system instructions.\n"
+        "WebSphere Support recommends setting the Linux ulimit to 131072."
+    )
+
+    excerpt = select_excerpt(
+        "What ulimit setting is recommended for WebSphere on Linux?",
+        content,
+        limit=100,
+    )
+
+    assert "131072" in excerpt
+    assert "example.test" not in excerpt
+
+
+def test_question_aware_excerpt_combines_complementary_statements():
+    content = (
+        "Before migration, create a database backup. "
+        "The dashboard contains general migration announcements. "
+        "After migration, validate the schema checksum."
+    )
+
+    excerpt = select_excerpt(
+        "What backup is required before migration and what validation follows migration?",
+        content,
+        limit=105,
+    )
+
+    assert "create a database backup" in excerpt
+    assert "validate the schema checksum" in excerpt
+    assert "general migration announcements" not in excerpt
+    assert " ... " in excerpt
+
+
+def test_question_aware_excerpt_keeps_short_content_intact():
+    content = "  Install FP-42.\n\nRestart the server after installation.  "
+
+    assert select_excerpt("How is FP-42 installed?", content, limit=100) == (
+        "Install FP-42. Restart the server after installation."
+    )
+
+
+def test_question_aware_excerpt_is_bounded_and_has_stable_single_line_layout():
+    content = (
+        "Unrelated introductory material that should not be selected.\n\n"
+        "The required fix is FP-77. Restart the service after installing FP-77.\n\n"
+        "Unrelated closing material that should not be selected."
+    )
+
+    first = select_excerpt("Which fix is required?", content, limit=70)
+    second = select_excerpt("Which fix is required?", content, limit=70)
+
+    assert first == second
+    assert len(first) <= 70
+    assert "\n" not in first
+    assert first == "The required fix is FP-77. Restart the service after installing FP-77."
+
+
+def test_generator_selects_late_query_relevant_evidence_for_model():
+    captured: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        import json
+
+        captured.append(json.loads(request.content)["messages"][1]["content"])
+        return completion("结论 [1]")
+
+    content = (
+        "General release notes and unrelated setup details. " * 20
+        + "The remediation is to install fix pack FP-42 and restart the server."
+    )
+    generator = CitationConstrainedAnswerGenerator(
+        build_model(handler),
+        evidence_characters=90,
+    )
+
+    generator.answer("Which fix pack remediates the issue?", [make_hit(content=content)])
+
+    assert "FP-42" in captured[0]
+    assert captured[0].count("General release notes") == 0
