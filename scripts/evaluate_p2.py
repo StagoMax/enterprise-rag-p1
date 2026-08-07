@@ -4,10 +4,11 @@ import argparse
 import json
 import time
 from collections import defaultdict
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
-from enterprise_rag.answering import EXCERPT_CHARS, EvidenceAnswerGenerator
+from enterprise_rag.answering import EXCERPT_CHARS
 from enterprise_rag.audit import JsonlAuditStore
 from enterprise_rag.bootstrap import (
     initialize_demo_data,
@@ -16,12 +17,12 @@ from enterprise_rag.bootstrap import (
     load_graph_edges,
 )
 from enterprise_rag.chunking import build_document, chunk_document
-from enterprise_rag.config import Settings
-from enterprise_rag.embeddings import (
-    BgeM3EmbeddingProvider,
-    HashingEmbeddingProvider,
-    NemotronEmbeddingProvider,
+from enterprise_rag.components import (
+    RuntimeComponents,
+    build_runtime_components,
+    describe_runtime_components,
 )
+from enterprise_rag.config import Settings
 from enterprise_rag.evaluation import (
     content_recall,
     ndcg_at_k,
@@ -31,7 +32,6 @@ from enterprise_rag.evaluation import (
 from enterprise_rag.graph import VersionedKnowledgeGraph
 from enterprise_rag.graph_retrieval import GraphRagRetriever
 from enterprise_rag.models import Principal, QueryRequest
-from enterprise_rag.retrieval import InMemoryHybridStore
 from enterprise_rag.router import RuleBasedRouter
 from enterprise_rag.service import EnterpriseRagService
 from enterprise_rag.sql_tool import ReadOnlySqlTool
@@ -43,6 +43,46 @@ ANSWER_RECALL_THRESHOLD = 0.6
 # Categories carrying a prose gold answer. The refusal slices and graph_unauthorized
 # ship an empty expected_answer, and tool answers are exact values scored separately.
 PROSE_ANSWER_CATEGORIES = frozenset({"rag", "exact_search", "graph_rag"})
+EVALUATION_CATEGORIES = frozenset(
+    {
+        "rag",
+        "exact_search",
+        "tool",
+        "unauthorized",
+        "no_evidence",
+        "graph_rag",
+        "graph_unauthorized",
+    }
+)
+CONFIDENCE_GATED_METRICS = frozenset(
+    {
+        "route_accuracy",
+        "semantic_rag_recall_at_3",
+        "semantic_rag_top1_citation_accuracy",
+        "graph_joint_recall_at_3",
+        "graph_target_recall_at_3",
+        "graph_path_accuracy",
+        "refusal_accuracy",
+        "tool_answer_accuracy",
+        "answer_span_hit_rate_fitting",
+    }
+)
+METRIC_LABELS = {
+    "route_accuracy": "Route accuracy",
+    "p1_retrieval_recall_at_3": "Base retrieval Recall@3",
+    "p1_top1_citation_accuracy": "Base retrieval Top-1 citation accuracy",
+    "semantic_rag_recall_at_3": "Semantic RAG Recall@3",
+    "semantic_rag_top1_citation_accuracy": "Semantic RAG Top-1 citation accuracy",
+    "graph_joint_recall_at_3": "Graph joint Recall@3",
+    "graph_target_recall_at_3": "Graph target Recall@3",
+    "graph_path_accuracy": "Graph path accuracy",
+    "graph_recall_gain": "Graph recall gain",
+    "graph_acl_isolation": "Graph ACL isolation",
+    "permission_isolation": "Permission isolation",
+    "refusal_accuracy": "Refusal accuracy",
+    "tool_answer_accuracy": "Tool answer accuracy",
+    "answer_span_hit_rate_fitting": "Fitting answer-span hit rate",
+}
 
 
 def percentile(values: list[float], percent: float) -> float:
@@ -53,30 +93,29 @@ def percentile(values: list[float], percent: float) -> float:
     return ordered[index]
 
 
-def embedding_provider(settings: Settings):
-    if settings.embedding_backend == "nemotron":
-        return NemotronEmbeddingProvider(
-            settings.nemotron_model_id,
-            settings.nemotron_dimensions,
-            settings.nemotron_device,
-        )
-    if settings.embedding_backend == "bge_m3":
-        return BgeM3EmbeddingProvider(settings.bge_model_id, settings.bge_device)
-    return HashingEmbeddingProvider(settings.hashing_dimensions)
-
-
-def build_service(settings: Settings) -> EnterpriseRagService:
+def _build_service_and_components(
+    settings: Settings,
+) -> tuple[EnterpriseRagService, RuntimeComponents]:
     initialize_demo_data(settings.demo_db_path)
-    store = InMemoryHybridStore(
-        embedding_provider(settings),
-        dense_weight=settings.dense_weight,
-    )
-    items = []
-    for document_input in load_documents(settings.corpus_path):
-        document = build_document(document_input)
-        items.append((document, chunk_document(document)))
-    store.upsert_documents(items)
-    store.commit(settings.index_version)
+    components = build_runtime_components(settings)
+    store = components.store
+    if settings.vector_backend == "milvus":
+        if not store.has_version(settings.index_version):
+            available = ", ".join(store.versions()) or "none"
+            raise RuntimeError(
+                f"Milvus index version {settings.index_version!r} is unavailable "
+                f"(available: {available})"
+            )
+        # Attach the immutable published snapshot. Evaluation must not rebuild it.
+        store.rollback(settings.index_version)
+    else:
+        items = []
+        chunking_config = settings.chunking_config()
+        for document_input in load_documents(settings.corpus_path):
+            document = build_document(document_input)
+            items.append((document, chunk_document(document, config=chunking_config)))
+        store.upsert_documents(items)
+        store.commit(settings.index_version)
 
     graph = VersionedKnowledgeGraph()
     graph.publish(
@@ -92,7 +131,7 @@ def build_service(settings: Settings) -> EnterpriseRagService:
         expansion_limit=settings.graph_expansion_limit,
         score_decay=settings.graph_score_decay,
     )
-    return EnterpriseRagService(
+    service = EnterpriseRagService(
         settings=settings,
         router=RuleBasedRouter(),
         store=store,
@@ -100,8 +139,14 @@ def build_service(settings: Settings) -> EnterpriseRagService:
         retriever=retriever,
         sql_tool=ReadOnlySqlTool(settings.demo_db_path),
         audit=JsonlAuditStore(settings.audit_path),
-        answer_generator=EvidenceAnswerGenerator(),
+        answer_generator=components.answer_generator,
     )
+    return service, components
+
+
+def build_service(settings: Settings) -> EnterpriseRagService:
+    service, _ = _build_service_and_components(settings)
+    return service
 
 
 def rate(rows: list[dict[str, Any]], key: str) -> float:
@@ -113,18 +158,148 @@ def counts(rows: list[dict[str, Any]], key: str) -> tuple[int, int]:
 
 
 def isolation_counts(rows: list[dict[str, Any]]) -> tuple[int, int]:
-    successes = sum(
-        row["forbidden_clear"] and row["response_forbidden_clear"] for row in rows
-    )
+    successes = sum(row["forbidden_clear"] and row["response_forbidden_clear"] for row in rows)
     return successes, len(rows)
 
 
-def evaluate(settings: Settings) -> dict[str, Any]:
+def _retrieval_slice_metrics(
+    rows: list[dict[str, Any]],
+) -> dict[str, float]:
+    return {
+        "recall_at_3": rate(rows, "evidence_recalled"),
+        "top1_citation_accuracy": rate(rows, "top1_correct"),
+    }
+
+
+def _confidence_checks(
+    thresholds: dict[str, float],
+    confidence_intervals: dict[str, dict[str, float | int]],
+) -> dict[str, bool]:
+    """Gate quality proportions on their Wilson lower bound.
+
+    Zero-tolerance isolation checks remain point-estimate gates: a confidence
+    lower bound can never equal 1.0 for a finite sample. Their intervals are
+    still reported so sample uncertainty remains visible.
+    """
+    return {
+        key: float(confidence_intervals[key]["low"]) >= thresholds[key]
+        for key in sorted(CONFIDENCE_GATED_METRICS)
+        if key in thresholds and key in confidence_intervals
+    }
+
+
+def _quality_thresholds(
+    categories: set[str],
+    *,
+    has_fitting_answers: bool,
+) -> dict[str, float]:
+    thresholds = {
+        "route_accuracy": 0.90,
+        "permission_isolation": 1.0,
+    }
+    if categories & {"rag", "exact_search"}:
+        thresholds.update(
+            {
+                "p1_retrieval_recall_at_3": 0.85,
+                "p1_top1_citation_accuracy": 0.95,
+            }
+        )
+    if "rag" in categories:
+        thresholds.update(
+            {
+                "semantic_rag_recall_at_3": 0.85,
+                "semantic_rag_top1_citation_accuracy": 0.95,
+            }
+        )
+    if "graph_rag" in categories:
+        thresholds.update(
+            {
+                "graph_joint_recall_at_3": 0.80,
+                "graph_target_recall_at_3": 0.85,
+                "graph_path_accuracy": 0.95,
+                "graph_recall_gain": 0.15,
+            }
+        )
+    if "graph_unauthorized" in categories:
+        thresholds["graph_acl_isolation"] = 1.0
+    if categories & {"unauthorized", "no_evidence"}:
+        thresholds["refusal_accuracy"] = 0.90
+    if "tool" in categories:
+        thresholds["tool_answer_accuracy"] = 0.85
+    if has_fitting_answers:
+        # This remains a regression floor rather than a quality target. It is
+        # gated only on gold spans short enough to fit in one excerpt.
+        thresholds["answer_span_hit_rate_fitting"] = 0.55
+    return thresholds
+
+
+def _candidate_trace(
+    settings: Settings,
+    components: RuntimeComponents,
+    question: str,
+    principal: Principal,
+    expected: set[str],
+    limit: int,
+) -> list[dict[str, Any]]:
+    hits = components.store.search(
+        question,
+        principal.roles,
+        top_k=limit,
+        exact=False,
+        min_score=settings.min_retrieval_score,
+    )
+    base_order = sorted(
+        enumerate(hits),
+        key=lambda item: (-item[1].score, item[0]),
+    )
+    base_rank_by_id = {
+        hit.chunk.document_id: rank for rank, (_, hit) in enumerate(base_order, start=1)
+    }
+    return [
+        {
+            "document_id": hit.chunk.document_id,
+            "title": hit.chunk.title,
+            "business_class": hit.chunk.business_class,
+            "anchor": hit.chunk.anchor,
+            "base_rank": base_rank_by_id[hit.chunk.document_id],
+            "final_rank": final_rank,
+            "base_score": hit.score,
+            "lexical_score": hit.lexical_score,
+            "dense_score": hit.dense_score,
+            "is_gold": hit.chunk.document_id in expected,
+            "requires_relevance_review": (bool(expected) and hit.chunk.document_id not in expected),
+        }
+        for final_rank, hit in enumerate(hits, start=1)
+    ]
+
+
+def evaluate(
+    settings: Settings,
+    *,
+    candidate_diagnostics: bool = False,
+    candidate_limit: int = 20,
+    categories: frozenset[str] | None = None,
+) -> dict[str, Any]:
+    if candidate_limit < 1:
+        raise ValueError("candidate_limit must be positive")
     index_started = time.perf_counter()
-    service = build_service(settings)
+    service, components = _build_service_and_components(settings)
     index_seconds = time.perf_counter() - index_started
-    gold = load_gold_questions(settings.gold_path)
+    if categories is not None:
+        unknown_categories = categories - EVALUATION_CATEGORIES
+        if unknown_categories:
+            unknown = ", ".join(sorted(unknown_categories))
+            raise ValueError(f"unknown evaluation categories: {unknown}")
+        if not categories:
+            raise ValueError("categories must not be empty")
+    all_gold = load_gold_questions(settings.gold_path)
+    eligible_gold = [row for row in all_gold if row.get("score_enabled", True)]
+    gold = [row for row in eligible_gold if categories is None or row["category"] in categories]
+    excluded_gold = [row for row in all_gold if not row.get("score_enabled", True)]
+    if categories is not None and not gold:
+        raise ValueError("no scored gold rows match the selected categories")
     results: list[dict[str, Any]] = []
+    candidate_traces: list[dict[str, Any]] = []
 
     for row in gold:
         principal = Principal(
@@ -141,7 +316,7 @@ def evaluate(settings: Settings) -> dict[str, Any]:
             principal,
         )
         latency_ms = (time.perf_counter() - query_started) * 1000
-        citations = [citation.source_id for citation in response.citations]
+        citations = [citation.source_id for citation in response.citations[: settings.top_k]]
         expected = set(row.get("expected_source_ids", []))
         forbidden = set(row.get("forbidden_source_ids", []))
         graph_targets = set(row.get("expected_graph_target_ids", []))
@@ -149,6 +324,25 @@ def evaluate(settings: Settings) -> dict[str, Any]:
         serialized_paths = json.dumps(graph_paths, ensure_ascii=False)
         serialized_response = response.model_dump_json()
         expected_path = row.get("expected_graph_path")
+
+        if candidate_diagnostics and row["category"] == "rag":
+            candidates = _candidate_trace(
+                settings,
+                components,
+                str(row["question"]),
+                principal,
+                expected,
+                candidate_limit,
+            )
+            candidate_traces.append(
+                {
+                    "id": row["id"],
+                    "question": row["question"],
+                    "expected_source_ids": sorted(expected),
+                    "gold_in_candidates": any(candidate["is_gold"] for candidate in candidates),
+                    "candidates": candidates,
+                }
+            )
 
         hybrid_target_recalled = False
         if row["category"] == "graph_rag":
@@ -159,7 +353,9 @@ def evaluate(settings: Settings) -> dict[str, Any]:
                 ),
                 principal,
             )
-            hybrid_ids = {citation.source_id for citation in hybrid_response.citations}
+            hybrid_ids = {
+                citation.source_id for citation in hybrid_response.citations[: settings.top_k]
+            }
             hybrid_target_recalled = bool(graph_targets & hybrid_ids)
 
         gold_answer = str(row.get("expected_answer", "") or "")
@@ -204,8 +400,7 @@ def evaluate(settings: Settings) -> dict[str, Any]:
                 "forbidden_clear": not bool(forbidden & set(citations))
                 and not any(source_id in serialized_paths for source_id in forbidden),
                 "response_forbidden_clear": not any(
-                    source_id.lower() in serialized_response.lower()
-                    for source_id in forbidden
+                    source_id.lower() in serialized_response.lower() for source_id in forbidden
                 ),
                 "latency_ms": round(latency_ms, 3),
                 "citation_ids": citations,
@@ -214,21 +409,15 @@ def evaluate(settings: Settings) -> dict[str, Any]:
             }
         )
 
-    p1_retrieval = [
-        row for row in results if row["category"] in {"rag", "exact_search"}
-    ]
+    p1_retrieval = [row for row in results if row["category"] in {"rag", "exact_search"}]
+    semantic_rag_rows = [row for row in results if row["category"] == "rag"]
+    exact_search_rows = [row for row in results if row["category"] == "exact_search"]
     graph_rows = [row for row in results if row["category"] == "graph_rag"]
-    graph_acl_rows = [
-        row for row in results if row["category"] == "graph_unauthorized"
-    ]
-    refusal_rows = [
-        row for row in results if row["category"] in {"unauthorized", "no_evidence"}
-    ]
+    graph_acl_rows = [row for row in results if row["category"] == "graph_unauthorized"]
+    refusal_rows = [row for row in results if row["category"] in {"unauthorized", "no_evidence"}]
     tool_rows = [row for row in results if row["tool_answer_correct"] is not None]
     answer_rows = [row for row in results if row["answer_recall"] is not None]
-    fitting_answer_rows = [
-        row for row in results if row["answer_span_hit_fitting"] is not None
-    ]
+    fitting_answer_rows = [row for row in results if row["answer_span_hit_fitting"] is not None]
     ranked_rows = [row for row in results if row["reciprocal_rank"] is not None]
     category_rows: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in results:
@@ -237,10 +426,16 @@ def evaluate(settings: Settings) -> dict[str, Any]:
     latencies = [row["latency_ms"] for row in results]
     graph_target_recall = rate(graph_rows, "graph_target_recalled")
     hybrid_target_recall = rate(graph_rows, "hybrid_target_recalled")
+    semantic_metrics = _retrieval_slice_metrics(semantic_rag_rows)
+    exact_search_metrics = _retrieval_slice_metrics(exact_search_rows)
     metrics = {
         "route_accuracy": rate(results, "route_correct"),
         "p1_retrieval_recall_at_3": rate(p1_retrieval, "evidence_recalled"),
         "p1_top1_citation_accuracy": rate(p1_retrieval, "top1_correct"),
+        "semantic_rag_recall_at_3": semantic_metrics["recall_at_3"],
+        "semantic_rag_top1_citation_accuracy": semantic_metrics["top1_citation_accuracy"],
+        "exact_search_recall_at_3": exact_search_metrics["recall_at_3"],
+        "exact_search_top1_citation_accuracy": exact_search_metrics["top1_citation_accuracy"],
         "graph_joint_recall_at_3": rate(graph_rows, "all_evidence_recalled"),
         "graph_target_recall_at_3": graph_target_recall,
         "graph_path_accuracy": rate(graph_rows, "graph_path_correct"),
@@ -248,17 +443,13 @@ def evaluate(settings: Settings) -> dict[str, Any]:
         "graph_recall_gain": round(graph_target_recall - hybrid_target_recall, 4),
         "graph_acl_isolation": round(
             sum(
-                row["forbidden_clear"] and row["response_forbidden_clear"]
-                for row in graph_acl_rows
+                row["forbidden_clear"] and row["response_forbidden_clear"] for row in graph_acl_rows
             )
             / max(len(graph_acl_rows), 1),
             4,
         ),
         "permission_isolation": round(
-            sum(
-                row["forbidden_clear"] and row["response_forbidden_clear"]
-                for row in results
-            )
+            sum(row["forbidden_clear"] and row["response_forbidden_clear"] for row in results)
             / max(len(results), 1),
             4,
         ),
@@ -282,29 +473,11 @@ def evaluate(settings: Settings) -> dict[str, Any]:
         "p95_latency_ms": round(percentile(latencies, 0.95), 2),
         "index_seconds": round(index_seconds, 2),
     }
-    thresholds = {
-        "route_accuracy": 0.90,
-        "p1_retrieval_recall_at_3": 0.85,
-        "p1_top1_citation_accuracy": 0.95,
-        "graph_joint_recall_at_3": 0.80,
-        "graph_target_recall_at_3": 0.85,
-        "graph_path_accuracy": 0.95,
-        "graph_recall_gain": 0.15,
-        "graph_acl_isolation": 1.0,
-        "permission_isolation": 1.0,
-        "refusal_accuracy": 0.90,
-        "tool_answer_accuracy": 0.85,
-        # Gated on the length-controlled subset only. The unrestricted
-        # answer_span_hit_rate is reported but not gated, because it falls
-        # monotonically with gold-answer length regardless of retrieval quality.
-        #
-        # This is a regression floor, not a quality target. The metric is new and
-        # there is no principled prior for a "good" value, so the floor sits below
-        # the measured Nemotron baseline (0.619, 95% CI 0.524-0.706) far enough to
-        # fire on real degradation rather than on sampling noise. Raising it is a
-        # roadmap item, tracked with the excerpt-truncation fix it depends on.
-        "answer_span_hit_rate_fitting": 0.55,
-    }
+    evaluated_categories = set(category_rows)
+    thresholds = _quality_thresholds(
+        evaluated_categories,
+        has_fitting_answers=bool(fitting_answer_rows),
+    )
     checks = {key: metrics[key] >= threshold for key, threshold in thresholds.items()}
 
     # Wilson bounds on every proportion. Several slices are n=20 and saturate at
@@ -313,6 +486,10 @@ def evaluate(settings: Settings) -> dict[str, Any]:
         "route_accuracy": counts(results, "route_correct"),
         "p1_retrieval_recall_at_3": counts(p1_retrieval, "evidence_recalled"),
         "p1_top1_citation_accuracy": counts(p1_retrieval, "top1_correct"),
+        "semantic_rag_recall_at_3": counts(semantic_rag_rows, "evidence_recalled"),
+        "semantic_rag_top1_citation_accuracy": counts(semantic_rag_rows, "top1_correct"),
+        "exact_search_recall_at_3": counts(exact_search_rows, "evidence_recalled"),
+        "exact_search_top1_citation_accuracy": counts(exact_search_rows, "top1_correct"),
         "graph_joint_recall_at_3": counts(graph_rows, "all_evidence_recalled"),
         "graph_target_recall_at_3": counts(graph_rows, "graph_target_recalled"),
         "graph_path_accuracy": counts(graph_rows, "graph_path_correct"),
@@ -333,8 +510,29 @@ def evaluate(settings: Settings) -> dict[str, Any]:
         }
         for key, (successes, total) in proportion_samples.items()
     }
+    confidence_checks = _confidence_checks(thresholds, confidence_intervals)
+    runtime_configuration = describe_runtime_components(settings, components)
+    reranker_calls = getattr(components.reranker, "call_count", None)
+    reranker_degraded_calls = getattr(components.reranker, "degraded_count", None)
+    reranker_external_calls = getattr(components.reranker, "external_call_count", None)
+    reranker_cache_hits = getattr(components.reranker, "cache_hit_count", None)
+    reranker_deterministic_calls = getattr(
+        components.reranker, "deterministic_call_count", None
+    )
+    reranker_http_attempts = getattr(components.reranker, "http_attempt_count", None)
+    reranker_judgement_digest = getattr(components.reranker, "judgement_digest", None)
     return {
-        "stage": "p2-experimental",
+        "stage": f"{settings.corpus_path.parent.name.removeprefix('techqa_')}-experimental",
+        "vector_backend": settings.vector_backend,
+        "index_version": settings.index_version,
+        "dense_weight": settings.dense_weight,
+        "top_k": settings.top_k,
+        "min_retrieval_score": settings.min_retrieval_score,
+        "milvus_search_multiplier": settings.milvus_search_multiplier,
+        "milvus_search_mode": settings.milvus_search_mode,
+        "milvus_fielded_search_enabled": settings.milvus_fielded_search_enabled,
+        "query_rewrite_enabled": settings.query_rewrite_enabled,
+        "rerank_strategy": settings.rerank_strategy,
         "backend": settings.embedding_backend,
         "model": (
             settings.nemotron_model_id
@@ -350,23 +548,66 @@ def evaluate(settings: Settings) -> dict[str, Any]:
             if settings.embedding_backend == "bge_m3"
             else settings.hashing_dimensions
         ),
+        "reranker_backend": settings.reranker_backend,
+        "reranker": runtime_configuration["reranker"]["model"],
+        "answer_generator_backend": settings.llm_backend,
+        "answer_generator": runtime_configuration["answer_generator"]["effective_class"],
+        "configuration": runtime_configuration,
+        "reranker_stats": {
+            "calls": reranker_calls,
+            "degraded_calls": reranker_degraded_calls,
+            "external_calls": reranker_external_calls,
+            "cache_hits": reranker_cache_hits,
+            "deterministic_calls": reranker_deterministic_calls,
+            "http_attempts": reranker_http_attempts,
+            "judgement_digest": reranker_judgement_digest,
+            "degraded_rate": round(
+                reranker_degraded_calls / reranker_calls,
+                4,
+            )
+            if reranker_calls
+            else 0.0
+            if reranker_calls == 0
+            else None,
+        },
         "documents": service.document_count(),
         "relations": service.current_index_info().relations,
         "questions": len(results),
+        "questions_total": len(all_gold),
+        "questions_eligible": len(eligible_gold),
+        "evaluation_categories": sorted(evaluated_categories),
+        "questions_excluded": len(excluded_gold),
+        "excluded_gold_ids": [row["id"] for row in excluded_gold],
+        "gold_path": str(settings.gold_path),
+        "gold_sha256": (
+            sha256(settings.gold_path.read_bytes()).hexdigest()
+            if settings.gold_path.exists()
+            else None
+        ),
         "metrics": metrics,
         "thresholds": thresholds,
         "checks": checks,
+        "confidence_checks": confidence_checks,
         "confidence_intervals": confidence_intervals,
-        "passed": all(checks.values()),
+        "candidate_diagnostics": {
+            "enabled": candidate_diagnostics,
+            "limit": candidate_limit,
+            "reranked": settings.reranker_backend != "none",
+            "queries": candidate_traces,
+        },
+        "passed_point_estimates": all(checks.values()),
+        "passed": all(checks.values()) and all(confidence_checks.values()),
         "by_category": {
             category: {
                 "count": len(rows),
                 "route_accuracy": rate(rows, "route_correct"),
                 "evidence_recall": rate(rows, "evidence_recalled"),
+                "top1_citation_accuracy": rate(rows, "top1_correct"),
                 "permission_isolation": rate(rows, "forbidden_clear"),
             }
             for category, rows in sorted(category_rows.items())
         },
+        "results": results,
         "failures": [
             row
             for row in results
@@ -394,15 +635,42 @@ def write_report(report: dict[str, Any], output: Path) -> None:
         encoding="utf-8",
     )
     lines = [
-        f"# P2 Graph RAG Baseline: {report['backend']}",
+        f"# {report['stage'].removesuffix('-experimental').upper()} Graph RAG Evaluation: "
+        f"{report['backend']} on {report['vector_backend']}",
         "",
+        f"- Index version: {report['index_version']}",
+        f"- Dense weight: {report['dense_weight']}",
+        f"- Milvus search multiplier: {report['milvus_search_multiplier']}",
+        f"- Milvus search mode: {report.get('milvus_search_mode', 'separate')}",
+        f"- Fielded search: {report.get('milvus_fielded_search_enabled', False)}",
+        f"- Query rewrite: {report.get('query_rewrite_enabled', False)}",
+        f"- Reranker: {report['reranker_backend']} ({report['reranker'] or 'none'})",
+        f"- Rerank strategy: {report.get('rerank_strategy', 'replace')}",
+        f"- Reranker cache mode: "
+        f"{report.get('configuration', {}).get('reranker', {}).get('cache_mode', 'off')}",
+        f"- Answer generator: {report['answer_generator_backend']} ({report['answer_generator']})",
+        f"- Reranker calls: {report.get('reranker_stats', {}).get('calls')}",
+        f"- Reranker degraded calls: {report.get('reranker_stats', {}).get('degraded_calls')}",
+        f"- Reranker external calls: {report.get('reranker_stats', {}).get('external_calls')}",
+        f"- Reranker cache hits: {report.get('reranker_stats', {}).get('cache_hits')}",
+        f"- Reranker deterministic calls: "
+        f"{report.get('reranker_stats', {}).get('deterministic_calls')}",
+        f"- Reranker HTTP attempts: "
+        f"{report.get('reranker_stats', {}).get('http_attempts')}",
+        f"- Reranker judgement digest: "
+        f"{report.get('reranker_stats', {}).get('judgement_digest')}",
         f"- Documents: {report['documents']}",
         f"- Relations: {report['relations']}",
-        f"- Questions: {report['questions']}",
+        f"- Gold rows total: {report.get('questions_total', report['questions'])}",
+        f"- Evaluation categories: {', '.join(report.get('evaluation_categories', [])) or 'all'}",
+        f"- Questions scored: {report['questions']}",
+        f"- Questions excluded from scoring: {report.get('questions_excluded', 0)}",
+        f"- Point-estimate checks passed: "
+        f"{'yes' if report.get('passed_point_estimates', report['passed']) else 'no'}",
         f"- Passed: {'yes' if report['passed'] else 'no'}",
         "",
-        "| Metric | Result | 95% CI | n | Threshold | Passed |",
-        "|---|---:|:--:|---:|---:|---|",
+        "| Metric | Result | 95% CI | n | Threshold | Point | CI lower |",
+        "|---|---:|:--:|---:|---:|---|---|",
     ]
     intervals = report.get("confidence_intervals", {})
     for key, threshold in report["thresholds"].items():
@@ -410,11 +678,29 @@ def write_report(report: dict[str, Any], output: Path) -> None:
         span = f"{interval['low']:.4f}–{interval['high']:.4f}" if interval else "—"
         size = str(interval["n"]) if interval else "—"
         lines.append(
-            f"| {key} | {report['metrics'][key]:.4f} | {span} | {size} | "
-            f"{threshold:.4f} | {report['checks'][key]} |"
+            f"| {METRIC_LABELS.get(key, key)} | {report['metrics'][key]:.4f} | {span} | {size} | "
+            f"{threshold:.4f} | {report['checks'][key]} | "
+            f"{report.get('confidence_checks', {}).get(key, 'n/a')} |"
         )
     lines.extend(
         [
+            "",
+            "## Retrieval slices",
+            "",
+            "| Slice | Recall@3 | Top-1 citation | n |",
+            "|---|---:|---:|---:|",
+            "| Semantic RAG | "
+            f"{report['metrics']['semantic_rag_recall_at_3']:.4f} | "
+            f"{report['metrics']['semantic_rag_top1_citation_accuracy']:.4f} | "
+            f"{report['confidence_intervals']['semantic_rag_recall_at_3']['n']} |",
+            "| Exact search | "
+            f"{report['metrics']['exact_search_recall_at_3']:.4f} | "
+            f"{report['metrics']['exact_search_top1_citation_accuracy']:.4f} | "
+            f"{report['confidence_intervals']['exact_search_recall_at_3']['n']} |",
+            "",
+            f"Candidate diagnostics: "
+            f"{'enabled' if report['candidate_diagnostics']['enabled'] else 'disabled'} "
+            f"(limit {report['candidate_diagnostics']['limit']}).",
             "",
             "## Ranking and answer quality",
             "",
@@ -427,6 +713,11 @@ def write_report(report: dict[str, Any], output: Path) -> None:
             "",
             f"P50 latency: {report['metrics']['p50_latency_ms']} ms",
             f"P95 latency: {report['metrics']['p95_latency_ms']} ms",
+            "Latency note: replay mode uses local cached judgements and is not a deployment "
+            "latency measurement."
+            if report.get("configuration", {}).get("reranker", {}).get("cache_mode")
+            == "replay"
+            else "Latency note: includes live reranker latency when reranking is enabled.",
             f"Index time: {report['metrics']['index_seconds']} s",
         ]
     )
@@ -434,42 +725,174 @@ def write_report(report: dict[str, Any], output: Path) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--backend", choices=["hashing", "nemotron", "bge_m3"], default="hashing")
+    parser = argparse.ArgumentParser(
+        description=(
+            "Evaluate the same component configuration used by the API. CLI values override "
+            "RAG_* environment settings; API keys are accepted only through "
+            "RAG_LLM_API_KEY or OPENTOPIA_MODEL_KEY."
+        )
+    )
+    parser.add_argument("--backend", choices=["hashing", "nemotron", "bge_m3"])
     parser.add_argument("--model")
-    parser.add_argument("--dimensions", type=int, default=1024)
-    parser.add_argument("--device", default="cuda")
+    parser.add_argument("--dimensions", type=int)
+    parser.add_argument("--device")
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--vector-backend", choices=["memory", "milvus"])
+    parser.add_argument("--index-version")
+    parser.add_argument("--milvus-uri")
+    parser.add_argument("--milvus-collection")
+    parser.add_argument("--dense-weight", type=float)
+    parser.add_argument("--search-multiplier", type=int)
+    parser.add_argument("--milvus-search-mode", choices=["separate", "native_rrf"])
+    parser.add_argument(
+        "--fielded-search",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+    )
+    parser.add_argument(
+        "--query-rewrite",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+    )
+    parser.add_argument("--hybrid-rrf-k", type=int)
+    parser.add_argument("--top-k", type=int)
+    parser.add_argument("--reranker", choices=["none", "cross_encoder", "llm"])
+    parser.add_argument("--reranker-model")
+    parser.add_argument("--reranker-device")
+    parser.add_argument("--rerank-candidates", type=int)
+    parser.add_argument("--rerank-strategy", choices=["replace", "weighted_rrf"])
+    parser.add_argument("--reranker-weight", type=float)
+    parser.add_argument("--rerank-rrf-k", type=int)
+    parser.add_argument("--reranker-cache-mode", choices=["off", "record", "replay"])
+    parser.add_argument("--reranker-cache-path", type=Path)
+    parser.add_argument(
+        "--answer-generator",
+        choices=["extractive", "openai_compatible"],
+        help="Answer backend; openai_compatible requires LLM settings and an environment key.",
+    )
+    parser.add_argument("--llm-base-url")
+    parser.add_argument("--llm-model")
+    parser.add_argument(
+        "--candidate-diagnostics",
+        action="store_true",
+        help="Record ranked semantic-RAG candidates for hard-negative analysis.",
+    )
+    parser.add_argument("--candidate-limit", type=int, default=20)
+    parser.add_argument(
+        "--category",
+        action="append",
+        choices=sorted(EVALUATION_CATEGORIES),
+        help="Evaluate only this category; repeat to select multiple categories.",
+    )
     parser.add_argument(
         "--data",
         type=Path,
         default=Path("data/processed/techqa_p2"),
     )
+    parser.add_argument(
+        "--gold-path",
+        type=Path,
+        help="Override the gold JSONL path; rows with score_enabled=false are excluded.",
+    )
     args = parser.parse_args()
+    if args.top_k is not None and args.top_k < 1:
+        parser.error("--top-k must be positive")
+    if args.candidate_limit < 1:
+        parser.error("--candidate-limit must be positive")
+    if args.rerank_candidates is not None and args.rerank_candidates < 1:
+        parser.error("--rerank-candidates must be positive")
+    if args.reranker_weight is not None and not 0 <= args.reranker_weight <= 1:
+        parser.error("--reranker-weight must be between 0 and 1")
+    if args.rerank_rrf_k is not None and args.rerank_rrf_k < 1:
+        parser.error("--rerank-rrf-k must be positive")
+    if args.hybrid_rrf_k is not None and args.hybrid_rrf_k < 1:
+        parser.error("--hybrid-rrf-k must be positive")
 
+    base_settings = Settings()
+    embedding_backend = args.backend or base_settings.embedding_backend
+    vector_backend = args.vector_backend or base_settings.vector_backend
+    index_version = args.index_version or (
+        base_settings.index_version if vector_backend == "milvus" else "p2-evaluation-v1"
+    )
+    evaluation_prefix = (
+        f"{args.data.name}-milvus-{embedding_backend}"
+        if vector_backend == "milvus"
+        else f"p2-evaluation-{embedding_backend}"
+    )
+    dense_weight = (
+        args.dense_weight if args.dense_weight is not None else base_settings.dense_weight
+    )
+    search_multiplier = (
+        args.search_multiplier
+        if args.search_multiplier is not None
+        else base_settings.milvus_search_multiplier
+    )
     overrides: dict[str, str] = {}
-    if args.model and args.backend == "nemotron":
+    if args.model and embedding_backend == "nemotron":
         overrides["nemotron_model_id"] = args.model
-    if args.model and args.backend == "bge_m3":
+    if args.model and embedding_backend == "bge_m3":
         overrides["bge_model_id"] = args.model
     settings = Settings(
-        embedding_backend=args.backend,
-        nemotron_dimensions=args.dimensions,
-        nemotron_device=args.device,
-        bge_device=args.device,
+        embedding_backend=embedding_backend,
+        nemotron_dimensions=args.dimensions or base_settings.nemotron_dimensions,
+        nemotron_device=args.device or base_settings.nemotron_device,
+        bge_device=args.device or base_settings.bge_device,
         corpus_path=args.data / "documents.jsonl",
         relations_path=args.data / "relations.jsonl",
-        gold_path=args.data / "golden_questions.jsonl",
+        gold_path=args.gold_path or args.data / "golden_questions.jsonl",
         graph_enabled=True,
-        index_version="p2-evaluation-v1",
-        graph_state_path=Path("data/p2-evaluation-graph-state.json"),
-        audit_path=Path(f"data/p2-evaluation-{args.backend}-audit.jsonl"),
-        demo_db_path=Path(f"data/p2-evaluation-{args.backend}.sqlite"),
+        vector_backend=vector_backend,
+        milvus_uri=args.milvus_uri or base_settings.milvus_uri,
+        milvus_collection=args.milvus_collection or base_settings.milvus_collection,
+        dense_weight=dense_weight,
+        milvus_search_multiplier=search_multiplier,
+        milvus_search_mode=args.milvus_search_mode or base_settings.milvus_search_mode,
+        milvus_fielded_search_enabled=(
+            args.fielded_search
+            if args.fielded_search is not None
+            else base_settings.milvus_fielded_search_enabled
+        ),
+        query_rewrite_enabled=(
+            args.query_rewrite
+            if args.query_rewrite is not None
+            else base_settings.query_rewrite_enabled
+        ),
+        milvus_rrf_k=args.hybrid_rrf_k or base_settings.milvus_rrf_k,
+        top_k=args.top_k or base_settings.top_k,
+        reranker_backend=args.reranker or base_settings.reranker_backend,
+        reranker_model_id=args.reranker_model or base_settings.reranker_model_id,
+        reranker_device=(args.reranker_device or args.device or base_settings.reranker_device),
+        rerank_candidates=args.rerank_candidates or base_settings.rerank_candidates,
+        rerank_strategy=args.rerank_strategy or base_settings.rerank_strategy,
+        reranker_weight=(
+            args.reranker_weight
+            if args.reranker_weight is not None
+            else base_settings.reranker_weight
+        ),
+        rerank_rrf_k=args.rerank_rrf_k or base_settings.rerank_rrf_k,
+        reranker_cache_mode=(
+            args.reranker_cache_mode or base_settings.reranker_cache_mode
+        ),
+        reranker_cache_path=(
+            args.reranker_cache_path or base_settings.reranker_cache_path
+        ),
+        llm_backend=args.answer_generator or base_settings.llm_backend,
+        RAG_LLM_BASE_URL=args.llm_base_url or base_settings.llm_base_url,
+        RAG_LLM_MODEL=args.llm_model or base_settings.llm_model,
+        index_version=index_version,
+        graph_state_path=Path(f"data/{evaluation_prefix}-graph-state.json"),
+        audit_path=Path(f"data/{evaluation_prefix}-audit.jsonl"),
+        demo_db_path=Path(f"data/{evaluation_prefix}.sqlite"),
         min_retrieval_score=0.08,
         **overrides,
     )
-    report = evaluate(settings)
-    output = args.output or Path(f"reports/p2-baseline-{args.backend}.json")
+    report = evaluate(
+        settings,
+        candidate_diagnostics=args.candidate_diagnostics,
+        candidate_limit=args.candidate_limit,
+        categories=frozenset(args.category) if args.category else None,
+    )
+    output = args.output or Path(f"reports/p2-baseline-{embedding_backend}.json")
     write_report(report, output)
     print(
         json.dumps(

@@ -63,9 +63,10 @@ def build_service(settings: Settings) -> EnterpriseRagService:
         reranker=reranker,
     )
     items = []
+    chunking_config = settings.chunking_config()
     for document_input in load_documents(settings.corpus_path):
         document = build_document(document_input)
-        items.append((document, chunk_document(document)))
+        items.append((document, chunk_document(document, config=chunking_config)))
     store.upsert_documents(items)
     store.commit("p1-evaluation")
     graph = VersionedKnowledgeGraph()

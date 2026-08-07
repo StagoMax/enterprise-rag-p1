@@ -1,0 +1,19 @@
+{
+  "source_dataset": "nvidia/TechQA-RAG-Eval",
+  "selection": "P1 documents + train contexts + explicit reference targets + fillers",
+  "documents": 1000,
+  "relations": 307,
+  "relation_types": {
+    "references": 307
+  },
+  "gold_questions": 180,
+  "gold_by_category": {
+    "exact_search": 20,
+    "graph_rag": 40,
+    "graph_unauthorized": 20,
+    "no_evidence": 10,
+    "rag": 60,
+    "tool": 20,
+    "unauthorized": 10
+  }
+}
