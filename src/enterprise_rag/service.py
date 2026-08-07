@@ -52,7 +52,12 @@ class EnterpriseRagService:
         return self._answer_generator
 
     def ingest(self, document_input: DocumentInput) -> tuple[str, int]:
-        chunk_count = len(chunk_document(build_document(document_input)))
+        chunk_count = len(
+            chunk_document(
+                build_document(document_input),
+                config=self._settings.chunking_config(),
+            )
+        )
         version = f"manual-{uuid4()}"
         self.publish_index(
             IndexPublishRequest(version=version, documents=[document_input])
@@ -64,7 +69,7 @@ class EnterpriseRagService:
         chunk_count = 0
         for document_input in document_inputs:
             document = build_document(document_input)
-            chunks = chunk_document(document)
+            chunks = chunk_document(document, config=self._settings.chunking_config())
             chunk_count += len(chunks)
             items.append((document, chunks))
         self._store.upsert_documents(items)
@@ -75,9 +80,12 @@ class EnterpriseRagService:
             previous_index_version = self._store.active_version
             previous_graph_version = self._graph.active_version
             documents_and_chunks = []
+            chunking_config = self._settings.chunking_config()
             for document_input in request.documents:
                 document = build_document(document_input)
-                documents_and_chunks.append((document, chunk_document(document)))
+                documents_and_chunks.append(
+                    (document, chunk_document(document, config=chunking_config))
+                )
 
             relations: list[GraphEdge]
             if request.replace_relations:
@@ -237,6 +245,7 @@ class EnterpriseRagService:
             exact=exact,
             min_score=self._settings.min_retrieval_score,
             use_graph=use_graph,
+            tenant_id=principal.tenant_id,
         )
         hits = retrieval.hits
         if not hits:

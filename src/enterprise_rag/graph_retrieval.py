@@ -41,6 +41,7 @@ class GraphRagRetriever:
         exact: bool,
         min_score: float,
         use_graph: bool,
+        tenant_id: str | None = None,
     ) -> RetrievalResult:
         base_hits = self._hybrid_store.search(
             query,
@@ -48,6 +49,7 @@ class GraphRagRetriever:
             top_k=max(top_k, self._seed_count),
             exact=exact,
             min_score=min_score,
+            tenant_id=tenant_id,
         )
         if exact or not use_graph or not base_hits:
             return RetrievalResult(hits=base_hits[:top_k], graph_paths=[], graph_used=False)
@@ -62,6 +64,7 @@ class GraphRagRetriever:
                 exact=False,
                 min_score=0.0,
                 candidate_document_ids=title_ids,
+                tenant_id=tenant_id,
             )
             base_hits = [
                 *title_hits,
@@ -108,6 +111,7 @@ class GraphRagRetriever:
             exact=False,
             min_score=0.0,
             candidate_document_ids=target_ids,
+            tenant_id=tenant_id,
         )
         best_target_hits: dict[str, SearchHit] = {}
         for hit in graph_candidates:

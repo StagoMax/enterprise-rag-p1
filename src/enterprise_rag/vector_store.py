@@ -12,19 +12,45 @@ import os
 import re
 import sys
 from collections.abc import Callable, Iterable, Iterator, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
 import numpy as np
 
 from enterprise_rag.embeddings import EmbeddingProvider, Reranker
-from enterprise_rag.models import Chunk, DocumentRecord, DocumentStatus, SearchHit
-from enterprise_rag.retrieval import InMemoryHybridStore, _identifiers
+from enterprise_rag.models import (
+    ROLE_PATTERN,
+    Chunk,
+    DocumentRecord,
+    DocumentStatus,
+    SearchHit,
+)
+from enterprise_rag.retrieval import (
+    RERANK_CHUNKS_PER_DOCUMENT,
+    InMemoryHybridStore,
+    _identifiers,
+    aggregate_document_candidates,
+    feature_search_text,
+    rank_document_candidates,
+    retrieval_feature_boost,
+    retrieval_queries,
+    select_distinct_documents,
+)
 
-_ROLE_TOKEN = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
+_ROLE_TOKEN = re.compile(ROLE_PATTERN)
+_DOCUMENT_ID_TOKEN = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
 
 # (已处理文档数, 文档总数, 已写入分块数)
 ProgressCallback = Callable[[int, int, int], None]
+
+
+@dataclass(frozen=True, slots=True)
+class _RecallBranch:
+    data: Any
+    anns_field: str
+    metric_type: str
+    weight: float
 
 
 def apply_milvus_lite_windows_patch() -> bool:
@@ -58,9 +84,19 @@ def is_embedded_uri(uri: str) -> bool:
 
 def validate_role(role: str) -> str:
     """角色会拼进 Milvus 过滤表达式，必须先做白名单校验以杜绝表达式注入。"""
-    if not _ROLE_TOKEN.match(role):
+    if not _ROLE_TOKEN.fullmatch(role):
         raise ValueError(f"角色名含有不允许的字符，无法安全构造过滤表达式：{role!r}")
     return role
+
+
+def validate_document_id(document_id: str) -> str:
+    """Validate IDs before interpolating them into a Milvus filter expression."""
+    if not _DOCUMENT_ID_TOKEN.fullmatch(document_id):
+        raise ValueError(
+            "document ID contains characters that cannot be used safely in a filter: "
+            f"{document_id!r}"
+        )
+    return document_id
 
 
 def encode_roles(roles: Iterable[str]) -> str:
@@ -71,7 +107,18 @@ def encode_roles(roles: Iterable[str]) -> str:
     return "|" + "|".join(sorted(validate_role(role) for role in roles)) + "|" if roles else "||"
 
 
-def build_acl_expression(roles: frozenset[str], *, tenant_id: str | None = None) -> str:
+def encode_role_keys(roles: Iterable[str]) -> str:
+    """Encode role names so LIKE cannot interpret underscores as wildcards."""
+    keys = [validate_role(role).encode("utf-8").hex() for role in sorted(roles)]
+    return "|" + "|".join(keys) + "|" if keys else "||"
+
+
+def build_acl_expression(
+    roles: frozenset[str],
+    *,
+    tenant_id: str | None = None,
+    encoded_roles: bool = False,
+) -> str:
     """构造 ACL 过滤表达式：仅 active 状态、且角色有交集、且租户匹配。
 
     角色匹配刻意用 VARCHAR 的 LIKE 而不是 ARRAY 的 array_contains_any：
@@ -82,8 +129,14 @@ def build_acl_expression(roles: frozenset[str], *, tenant_id: str | None = None)
     if not roles:
         # 空角色不得退化为"无过滤"，否则等于全量放行。
         return "false"
+    role_field = "roles_key" if encoded_roles else "roles_text"
+    role_tokens = (
+        [validate_role(role).encode("utf-8").hex() for role in sorted(roles)]
+        if encoded_roles
+        else [validate_role(role) for role in sorted(roles)]
+    )
     role_clause = " or ".join(
-        f'roles_text like "%|{validate_role(role)}|%"' for role in sorted(roles)
+        f'{role_field} like "%|{token}|%"' for token in role_tokens
     )
     clauses = [
         f'status == "{DocumentStatus.ACTIVE.value}"',
@@ -117,6 +170,7 @@ class HybridStore(Protocol):
         exact: bool = False,
         min_score: float = 0.0,
         candidate_document_ids: set[str] | None = None,
+        tenant_id: str | None = None,
     ) -> list[SearchHit]: ...
 
     def documents(self) -> Iterable[DocumentRecord]: ...
@@ -139,6 +193,19 @@ class MilvusHybridStore:
     都由 Milvus 保证，进程重启后依然有效。
     """
 
+    _FIELDED_FIELDS = frozenset(
+        {"title_text", "feature_text", "title_sparse", "feature_sparse", "roles_key"}
+    )
+    _STRUCTURED_CHUNK_FIELDS = frozenset(
+        {
+            "parent_id",
+            "parent_content",
+            "section_title",
+            "chunking_version",
+            "token_count",
+        }
+    )
+
     def __init__(
         self,
         embeddings: EmbeddingProvider,
@@ -153,6 +220,13 @@ class MilvusHybridStore:
         batch_documents: int = 200,
         batch_rows: int = 500,
         index_sparse: bool | None = None,
+        query_rewrite_enabled: bool = False,
+        fielded_search_enabled: bool = False,
+        search_mode: str = "separate",
+        hybrid_rrf_k: int = 60,
+        rerank_strategy: str = "replace",
+        reranker_weight: float = 0.5,
+        rerank_rrf_k: int = 60,
     ) -> None:
         if not 0 <= dense_weight <= 1:
             raise ValueError("dense_weight must be between 0 and 1")
@@ -169,6 +243,15 @@ class MilvusHybridStore:
         self._alias = collection
         self._search_multiplier = max(search_multiplier, 1)
         self._tenant_id = tenant_id
+        self._query_rewrite_enabled = query_rewrite_enabled
+        self._fielded_search_enabled = fielded_search_enabled
+        if search_mode not in {"separate", "native_rrf"}:
+            raise ValueError(f"unsupported Milvus search mode: {search_mode}")
+        self._search_mode = search_mode
+        self._hybrid_rrf_k = max(hybrid_rrf_k, 1)
+        self._rerank_strategy = rerank_strategy
+        self._reranker_weight = reranker_weight
+        self._rerank_rrf_k = rerank_rrf_k
         self._batch_documents = max(batch_documents, 1)
         self._batch_rows = max(batch_rows, 1)
         # milvus-lite 3.1.0 会把 BM25 稀疏字段当成稠密向量去建索引
@@ -197,6 +280,13 @@ class MilvusHybridStore:
 
     def has_version(self, version: str) -> bool:
         return self._client.has_collection(self._collection_name(version))
+
+    def is_version_published(self, version: str) -> bool:
+        aliases = set(self._client.list_aliases().get("aliases", []))
+        if self._alias not in aliases:
+            return False
+        description = self._client.describe_alias(self._alias)
+        return description.get("collection_name") == self._collection_name(version)
 
     def versions(self) -> list[str]:
         prefix = f"{self._alias}__"
@@ -230,6 +320,12 @@ class MilvusHybridStore:
             "search_text", DataType.VARCHAR, max_length=65535, enable_analyzer=True
         )
         schema.add_field(
+            "title_text", DataType.VARCHAR, max_length=2048, enable_analyzer=True
+        )
+        schema.add_field(
+            "feature_text", DataType.VARCHAR, max_length=4096, enable_analyzer=True
+        )
+        schema.add_field(
             "allowed_roles",
             DataType.ARRAY,
             element_type=DataType.VARCHAR,
@@ -238,6 +334,7 @@ class MilvusHybridStore:
         )
         # 过滤实际走这个字段，见 build_acl_expression 里的性能说明。
         schema.add_field("roles_text", DataType.VARCHAR, max_length=2176)
+        schema.add_field("roles_key", DataType.VARCHAR, max_length=8192)
         schema.add_field("status", DataType.VARCHAR, max_length=32)
         schema.add_field("tenant_id", DataType.VARCHAR, max_length=128)
         schema.add_field("business_class", DataType.VARCHAR, max_length=128)
@@ -246,8 +343,15 @@ class MilvusHybridStore:
         schema.add_field("version", DataType.VARCHAR, max_length=128)
         schema.add_field("anchor", DataType.VARCHAR, max_length=256)
         schema.add_field("position", DataType.INT64)
+        schema.add_field("parent_id", DataType.VARCHAR, max_length=512)
+        schema.add_field("parent_content", DataType.VARCHAR, max_length=65535)
+        schema.add_field("section_title", DataType.VARCHAR, max_length=1024)
+        schema.add_field("chunking_version", DataType.VARCHAR, max_length=128)
+        schema.add_field("token_count", DataType.INT64)
         schema.add_field("dense", DataType.FLOAT_VECTOR, dim=self._embeddings.dimensions)
         schema.add_field("sparse", DataType.SPARSE_FLOAT_VECTOR)
+        schema.add_field("title_sparse", DataType.SPARSE_FLOAT_VECTOR)
+        schema.add_field("feature_sparse", DataType.SPARSE_FLOAT_VECTOR)
         schema.add_function(
             Function(
                 name="content_bm25",
@@ -256,13 +360,32 @@ class MilvusHybridStore:
                 output_field_names=["sparse"],
             )
         )
+        schema.add_function(
+            Function(
+                name="title_bm25",
+                function_type=FunctionType.BM25,
+                input_field_names=["title_text"],
+                output_field_names=["title_sparse"],
+            )
+        )
+        schema.add_function(
+            Function(
+                name="feature_bm25",
+                function_type=FunctionType.BM25,
+                input_field_names=["feature_text"],
+                output_field_names=["feature_sparse"],
+            )
+        )
 
         index_params = self._client.prepare_index_params()
         index_params.add_index(field_name="dense", index_type="AUTOINDEX", metric_type="IP")
         if self._index_sparse:
-            index_params.add_index(
-                field_name="sparse", index_type="AUTOINDEX", metric_type="BM25"
-            )
+            for field_name in ("sparse", "title_sparse", "feature_sparse"):
+                index_params.add_index(
+                    field_name=field_name,
+                    index_type="AUTOINDEX",
+                    metric_type="BM25",
+                )
         self._client.create_collection(name, schema=schema, index_params=index_params)
 
     def commit(self, version: str, *, progress: ProgressCallback | None = None) -> None:
@@ -325,6 +448,157 @@ class MilvusHybridStore:
         self._pending.clear()
         self._refresh_document_cache()
 
+    def begin_unpublished_version(self, version: str) -> None:
+        """Create a collection that can be filled across multiple processes."""
+        if self.has_version(version):
+            raise ValueError(f"index version already exists: {version}")
+        self._create_collection(self._collection_name(version))
+
+    def unpublished_document_ids(self, version: str) -> set[str]:
+        """Return documents already written to an unpublished collection."""
+        name = self._collection_name(version)
+        if not self._client.has_collection(name):
+            raise ValueError(f"unknown index version: {version}")
+        self._client.load_collection(name)
+        iterator = self._client.query_iterator(
+            name,
+            filter="position == 0",
+            output_fields=["document_id"],
+            batch_size=self._batch_rows,
+        )
+        document_ids: set[str] = set()
+        try:
+            while True:
+                batch = iterator.next()
+                if not batch:
+                    break
+                document_ids.update(row["document_id"] for row in batch)
+        finally:
+            iterator.close()
+        return document_ids
+
+    def unpublished_chunking_versions(self, version: str) -> set[str]:
+        """Return chunking contracts already present in a resumable collection."""
+
+        name = self._collection_name(version)
+        if not self._client.has_collection(name):
+            raise ValueError(f"unknown index version: {version}")
+        if "chunking_version" not in self._field_names(name):
+            return {"legacy-characters-v1"}
+        self._client.load_collection(name)
+        iterator = self._client.query_iterator(
+            name,
+            filter="position == 0",
+            output_fields=["chunking_version"],
+            batch_size=self._batch_rows,
+        )
+        versions: set[str] = set()
+        try:
+            while True:
+                batch = iterator.next()
+                if not batch:
+                    break
+                versions.update(
+                    str(row.get("chunking_version") or "legacy-characters-v1")
+                    for row in batch
+                )
+        finally:
+            iterator.close()
+        return versions
+
+    def version_chunk_count(self, version: str) -> int:
+        name = self._collection_name(version)
+        if not self._client.has_collection(name):
+            raise ValueError(f"unknown index version: {version}")
+        return int(self._client.get_collection_stats(name).get("row_count", 0))
+
+    def append_unpublished_documents(
+        self,
+        version: str,
+        items: list[tuple[DocumentRecord, list[Chunk]]],
+        *,
+        progress: ProgressCallback | None = None,
+    ) -> int:
+        """Embed and append complete documents without publishing the version."""
+        name = self._collection_name(version)
+        if not self._client.has_collection(name):
+            raise ValueError(f"unknown index version: {version}")
+        if self.is_version_published(version):
+            raise ValueError(f"cannot append to published index version: {version}")
+        required_fields = self._FIELDED_FIELDS | self._STRUCTURED_CHUNK_FIELDS
+        missing = required_fields - self._field_names(name)
+        if missing:
+            raise ValueError(
+                "cannot resume an incompatible index schema; missing fields: "
+                + ", ".join(sorted(missing))
+            )
+
+        written = 0
+        for start in range(0, len(items), self._batch_documents):
+            batch = items[start : start + self._batch_documents]
+            texts: list[str] = []
+            for _, chunks in batch:
+                for chunk in chunks:
+                    texts.append(f"{chunk.title}\n{chunk.content}")
+            if texts:
+                vectors = self._embeddings.embed_documents(texts)
+                vector_index = 0
+                row_groups: list[list[dict[str, Any]]] = []
+                for document, chunks in batch:
+                    group = []
+                    for chunk in chunks:
+                        group.append(self._row(document, chunk, vectors[vector_index]))
+                        vector_index += 1
+                    if group:
+                        row_groups.append(group)
+
+                insert_buffer: list[dict[str, Any]] = []
+                for group in row_groups:
+                    if insert_buffer and len(insert_buffer) + len(group) > self._batch_rows:
+                        self._client.insert(name, insert_buffer)
+                        insert_buffer = []
+                    if len(group) > self._batch_rows:
+                        self._client.insert(name, group)
+                    else:
+                        insert_buffer.extend(group)
+                if insert_buffer:
+                    self._client.insert(name, insert_buffer)
+                written += vector_index
+            if progress is not None:
+                progress(min(start + self._batch_documents, len(items)), len(items), written)
+
+        if written:
+            self._client.flush(name)
+        return written
+
+    def publish_unpublished_version(
+        self,
+        version: str,
+        *,
+        expected_document_ids: set[str] | None = None,
+    ) -> None:
+        """Atomically expose a fully written collection through the read alias."""
+        name = self._collection_name(version)
+        if not self._client.has_collection(name):
+            raise ValueError(f"unknown index version: {version}")
+        stats = self._client.get_collection_stats(name)
+        if not int(stats.get("row_count", 0)):
+            raise ValueError(f"cannot publish empty index version: {version}")
+        if expected_document_ids is not None:
+            actual_document_ids = self.unpublished_document_ids(version)
+            if actual_document_ids != expected_document_ids:
+                missing = len(expected_document_ids - actual_document_ids)
+                unexpected = len(actual_document_ids - expected_document_ids)
+                raise ValueError(
+                    "cannot publish incomplete index version: "
+                    f"{missing} missing and {unexpected} unexpected document IDs"
+                )
+        self._client.load_collection(name)
+        self._point_alias_at(name)
+        self._active_version = version
+        self._pending.clear()
+        self._refresh_document_cache()
+
     def _point_alias_at(self, collection_name: str) -> None:
         existing = set(self._client.list_aliases().get("aliases", []))
         if self._alias in existing:
@@ -351,14 +625,25 @@ class MilvusHybridStore:
             "title": chunk.title[:1024],
             "content": chunk.content[:65535],
             "search_text": f"{chunk.document_id} {chunk.title} {chunk.content}"[:65535],
+            "title_text": f"{chunk.document_id} {chunk.title}"[:2048],
+            "feature_text": feature_search_text(
+                f"{chunk.document_id}\n{chunk.title}\n{chunk.content}",
+                document_id=chunk.document_id,
+            )[:4096],
             "allowed_roles": sorted(chunk.allowed_roles),
             "roles_text": encode_roles(chunk.allowed_roles),
+            "roles_key": encode_role_keys(chunk.allowed_roles),
             "status": chunk.status.value,
             "tenant_id": self._tenant_id,
             "business_class": chunk.business_class,
             "version": chunk.version,
             "anchor": chunk.anchor,
             "position": chunk.position,
+            "parent_id": (chunk.parent_id or "")[:512],
+            "parent_content": (chunk.parent_content or "")[:65535],
+            "section_title": (chunk.section_title or "")[:1024],
+            "chunking_version": chunk.chunking_version[:128],
+            "token_count": chunk.token_count,
             "dense": vector.tolist(),
             "owner": document.owner,
         }
@@ -376,25 +661,81 @@ class MilvusHybridStore:
         "version",
         "anchor",
         "position",
+        "tenant_id",
+        "parent_id",
+        "parent_content",
+        "section_title",
+        "chunking_version",
+        "token_count",
     )
+
+    def _field_names(self, collection_name: str) -> set[str]:
+        description = self._client.describe_collection(collection_name)
+        return {field["name"] for field in description.get("fields", [])}
+
+    def _output_fields(self, collection_name: str) -> list[str]:
+        if not hasattr(self._client, "describe_collection"):
+            return list(self._OUTPUT_FIELDS)
+        available = self._field_names(collection_name)
+        return [field for field in self._OUTPUT_FIELDS if field in available]
+
+    def _search_output_fields(self, collection_name: str) -> list[str]:
+        # Parent sections are much larger than child retrieval chunks. Fetch them
+        # only after ranking instead of once per candidate and recall branch.
+        return [
+            field
+            for field in self._output_fields(collection_name)
+            if field != "parent_content"
+        ]
+
+    def _hydrate_parent_content(self, hits: list[SearchHit]) -> list[SearchHit]:
+        if not hits or "parent_content" not in self._field_names(self._alias):
+            return hits
+        rows = self._client.get(
+            self._alias,
+            ids=[hit.chunk.chunk_id for hit in hits],
+            output_fields=["chunk_id", "parent_content"],
+        )
+        parents = {
+            str(row["chunk_id"]): str(row.get("parent_content") or "")
+            for row in rows
+        }
+        return [
+            hit.model_copy(
+                update={
+                    "chunk": hit.chunk.model_copy(
+                        update={"parent_content": parents.get(hit.chunk.chunk_id) or None}
+                    )
+                }
+            )
+            for hit in hits
+        ]
 
     def _iter_rows(self, collection_name: str) -> Iterator[dict[str, Any]]:
         """流式读出一个版本的全部行（含向量），供发布时继承上一版本快照。"""
         if not self._client.has_collection(collection_name):
             return
         self._client.load_collection(collection_name)
+        available_fields = self._field_names(collection_name)
+        requested_fields = list(
+            dict.fromkeys(
+                [
+                    *self._OUTPUT_FIELDS,
+                    "dense",
+                    "owner",
+                    "roles_text",
+                    "roles_key",
+                    "search_text",
+                    "title_text",
+                    "feature_text",
+                ]
+            )
+        )
         iterator = self._client.query_iterator(
             collection_name,
             filter="position >= 0",
             # 继承上一版本时必须带上写入所需的全部字段，否则新 collection 会缺列。
-            output_fields=[
-                *self._OUTPUT_FIELDS,
-                "dense",
-                "tenant_id",
-                "owner",
-                "roles_text",
-                "search_text",
-            ],
+            output_fields=[field for field in requested_fields if field in available_fields],
             batch_size=self._batch_rows,
         )
         try:
@@ -402,7 +743,22 @@ class MilvusHybridStore:
                 batch = iterator.next()
                 if not batch:
                     break
-                yield from batch
+                for row in batch:
+                    row["search_text"] = (
+                        f"{row['document_id']} {row['title']} {row['content']}"[:65535]
+                    )
+                    row["title_text"] = f"{row['document_id']} {row['title']}"[:2048]
+                    row["feature_text"] = feature_search_text(
+                        f"{row['document_id']}\n{row['title']}\n{row['content']}",
+                        document_id=str(row["document_id"]),
+                    )[:4096]
+                    row["roles_key"] = encode_role_keys(row["allowed_roles"])
+                    row.setdefault("parent_id", "")
+                    row.setdefault("parent_content", "")
+                    row.setdefault("section_title", "")
+                    row.setdefault("chunking_version", "legacy-characters-v1")
+                    row.setdefault("token_count", 0)
+                    yield row
         finally:
             iterator.close()
 
@@ -502,63 +858,90 @@ class MilvusHybridStore:
         exact: bool = False,
         min_score: float = 0.0,
         candidate_document_ids: set[str] | None = None,
+        tenant_id: str | None = None,
     ) -> list[SearchHit]:
         if self._active_version is None:
             return []
 
-        expression = build_acl_expression(roles, tenant_id=self._tenant_id)
+        requested_tenant = self._tenant_id if tenant_id is None else tenant_id
+        if requested_tenant != self._tenant_id:
+            return []
+
+        expression = build_acl_expression(
+            roles,
+            tenant_id=requested_tenant,
+            encoded_roles="roles_key" in self._field_names(self._alias),
+        )
+        validated_candidate_ids: set[str] | None = None
         if candidate_document_ids is not None:
             if not candidate_document_ids:
                 return []
-            ids = ", ".join(f'"{doc}"' for doc in sorted(candidate_document_ids))
+            validated_candidate_ids = {
+                validate_document_id(document_id)
+                for document_id in candidate_document_ids
+            }
+            ids = ", ".join(f'"{doc}"' for doc in sorted(validated_candidate_ids))
             expression = f"{expression} and document_id in [{ids}]"
 
         limit = max(top_k * self._search_multiplier, top_k)
+        if self._reranker is not None and not exact:
+            rerank_document_limit = max(top_k * 4, 20)
+            limit = max(limit, rerank_document_limit * RERANK_CHUNKS_PER_DOCUMENT)
         hits = (
-            self._exact_hits(query, expression, limit, roles)
+            self._exact_hits(query, expression, limit, roles, requested_tenant)
             if exact
-            else self._hybrid_hits(query, expression, limit, roles)
+            else self._hybrid_hits(query, expression, limit, roles, requested_tenant)
         )
+        if validated_candidate_ids is not None:
+            hits = [
+                hit
+                for hit in hits
+                if hit.chunk.document_id in validated_candidate_ids
+            ]
         hits = [hit for hit in hits if hit.score >= min_score]
 
         if self._reranker is not None and not exact and hits:
-            scores = self._reranker.score(
-                query, [f"{hit.chunk.title}\n{hit.chunk.content}" for hit in hits]
+            candidates = aggregate_document_candidates(
+                hits,
+                query,
+                max(top_k * 4, 20),
             )
-            hits = [
-                hit
-                for _, hit in sorted(
-                    zip(scores, hits, strict=True),
-                    key=lambda item: float(item[0]),
-                    reverse=True,
-                )
-            ]
-        return hits[:top_k]
+            scores = self._reranker.score(
+                query,
+                [candidate.reranker_text for candidate in candidates],
+            )
+            ranked_candidates = rank_document_candidates(
+                candidates,
+                scores,
+                strategy=self._rerank_strategy,
+                reranker_weight=self._reranker_weight,
+                rrf_k=self._rerank_rrf_k,
+            )
+            hits = [candidate.evidence_hit for candidate in ranked_candidates]
+        selected = select_distinct_documents(hits, top_k)
+        return self._hydrate_parent_content(selected)
 
     def _branch(
         self,
         data: Any,
         anns_field: str,
+        metric_type: str,
         expression: str,
         limit: int,
         roles: frozenset[str],
+        tenant_id: str,
     ) -> list[dict[str, Any]]:
-        """单路检索。
-
-        刻意不使用 ``hybrid_search``：实测其顶层 ``filter=`` 参数被静默忽略，
-        构造的用例里 6 条结果泄漏了 5 条越权文档。而 ``search`` 的 ``filter=``
-        经验证真实生效，因此两路各自过滤、再在 Python 侧融合，权限边界更可靠，
-        也顺带拿回了 hybrid_search 不返回的分路得分。
-        """
+        """Run one filtered ANN branch for the legacy/separate execution mode."""
         results = self._client.search(
             self._alias,
             data=[data],
             anns_field=anns_field,
             limit=limit,
             filter=expression,
-            output_fields=list(self._OUTPUT_FIELDS),
+            search_params={"metric_type": metric_type, "params": {}},
+            output_fields=self._search_output_fields(self._alias),
         )
-        return self._guard(results[0] if results else [], roles)
+        return self._guard(results[0] if results else [], roles, tenant_id)
 
     @staticmethod
     def _max_normalize(scores: dict[str, float]) -> dict[str, float]:
@@ -615,6 +998,8 @@ class MilvusHybridStore:
                 if exact
                 else ((1 - self._dense_weight) * lexical) + (self._dense_weight * dense)
             )
+            if not exact:
+                score += retrieval_feature_boost(query, chunk)
             hits.append(
                 SearchHit(
                     chunk=chunk,
@@ -626,33 +1011,170 @@ class MilvusHybridStore:
         return sorted(hits, key=lambda hit: hit.score, reverse=True)
 
     def _hybrid_hits(
-        self, query: str, expression: str, limit: int, roles: frozenset[str]
+        self,
+        query: str,
+        expression: str,
+        limit: int,
+        roles: frozenset[str],
+        tenant_id: str,
     ) -> list[SearchHit]:
-        dense_vector = self._embeddings.embed_queries([query])[0].tolist()
-        dense_rows = self._branch(dense_vector, "dense", expression, limit, roles)
-        sparse_rows = self._branch(query, "sparse", expression, limit, roles)
+        branches = self._recall_branches(query)
+        if self._search_mode == "native_rrf":
+            return self._native_hybrid_hits(
+                query,
+                branches,
+                expression,
+                limit,
+                roles,
+                tenant_id,
+            )
+
+        branch_results = [
+            (
+                branch,
+                self._branch(
+                    branch.data,
+                    branch.anns_field,
+                    branch.metric_type,
+                    expression,
+                    limit,
+                    roles,
+                    tenant_id,
+                ),
+            )
+            for branch in branches
+        ]
+        if len(branch_results) == 2:
+            entities: dict[str, dict[str, Any]] = {}
+            dense_scores: dict[str, float] = {}
+            for row in branch_results[0][1]:
+                entity = row["entity"]
+                entities[entity["chunk_id"]] = entity
+                dense_scores[entity["chunk_id"]] = max(float(row["distance"]), 0.0)
+            for row in branch_results[1][1]:
+                entities[row["entity"]["chunk_id"]] = row["entity"]
+            return self._rescore(query, entities, dense_scores, exact=False)
 
         entities: dict[str, dict[str, Any]] = {}
-        dense_scores: dict[str, float] = {}
-        for row in dense_rows:
-            entity = row["entity"]
-            entities[entity["chunk_id"]] = entity
-            dense_scores[entity["chunk_id"]] = max(float(row["distance"]), 0.0)
-        for row in sparse_rows:
-            entities[row["entity"]["chunk_id"]] = row["entity"]
-        return self._rescore(query, entities, dense_scores, exact=False)
+        recall_scores: dict[str, float] = {}
+        for branch, rows in branch_results:
+            for rank, row in enumerate(rows, start=1):
+                entity = row["entity"]
+                chunk_id = entity["chunk_id"]
+                entities[chunk_id] = entity
+                recall_scores[chunk_id] = recall_scores.get(chunk_id, 0.0) + (
+                    branch.weight / (self._hybrid_rrf_k + rank)
+                )
+        return self._rescore(
+            query,
+            entities,
+            self._max_normalize(recall_scores),
+            exact=False,
+        )
+
+    def _recall_branches(self, query: str) -> list[_RecallBranch]:
+        planned_queries = retrieval_queries(
+            query,
+            rewrite_enabled=self._query_rewrite_enabled,
+        )
+        vectors = self._embeddings.embed_queries(list(planned_queries))
+        branches = [
+            _RecallBranch(vector.tolist(), "dense", "IP", 1.0)
+            for vector in vectors
+        ]
+        branches.extend(
+            _RecallBranch(item, "sparse", "BM25", 1.0)
+            for item in planned_queries
+        )
+        if not self._fielded_search_enabled:
+            return branches
+
+        required = {"title_sparse", "feature_sparse"}
+        missing = required - self._field_names(self._alias)
+        if missing:
+            raise RuntimeError(
+                "fielded search requires a fielded index version; missing fields: "
+                + ", ".join(sorted(missing))
+            )
+        focused = planned_queries[-1]
+        branches.append(_RecallBranch(focused, "title_sparse", "BM25", 1.0))
+        feature_query = feature_search_text(query)
+        if feature_query:
+            branches.append(
+                _RecallBranch(feature_query, "feature_sparse", "BM25", 1.0)
+            )
+        return branches
+
+    def _native_hybrid_hits(
+        self,
+        query: str,
+        branches: Sequence[_RecallBranch],
+        expression: str,
+        limit: int,
+        roles: frozenset[str],
+        tenant_id: str,
+    ) -> list[SearchHit]:
+        from pymilvus import AnnSearchRequest, RRFRanker
+
+        requests = [
+            AnnSearchRequest(
+                data=[branch.data],
+                anns_field=branch.anns_field,
+                param={"metric_type": branch.metric_type, "params": {}},
+                limit=limit,
+                filter=expression,
+            )
+            for branch in branches
+        ]
+        # Preserve the full per-branch candidate union before application reranking.
+        hybrid_limit = limit * len(requests)
+        results = self._client.hybrid_search(
+            self._alias,
+            requests,
+            ranker=RRFRanker(self._hybrid_rrf_k),
+            limit=hybrid_limit,
+            output_fields=self._search_output_fields(self._alias),
+        )
+        rows = self._guard(results[0] if results else [], roles, tenant_id)
+        entities = {row["entity"]["chunk_id"]: row["entity"] for row in rows}
+        fused_scores = self._max_normalize(
+            {
+                row["entity"]["chunk_id"]: max(float(row["distance"]), 0.0)
+                for row in rows
+            }
+        )
+        return self._rescore(query, entities, fused_scores, exact=False)
 
     def _exact_hits(
-        self, query: str, expression: str, limit: int, roles: frozenset[str]
+        self,
+        query: str,
+        expression: str,
+        limit: int,
+        roles: frozenset[str],
+        tenant_id: str,
     ) -> list[SearchHit]:
-        rows = self._branch(query, "sparse", expression, limit, roles)
+        use_features = "feature_sparse" in self._field_names(self._alias) and bool(
+            feature_search_text(query)
+        )
+        rows = self._branch(
+            feature_search_text(query) if use_features else query,
+            "feature_sparse" if use_features else "sparse",
+            "BM25",
+            expression,
+            limit,
+            roles,
+            tenant_id,
+        )
         entities = {row["entity"]["chunk_id"]: row["entity"] for row in rows}
         return self._rescore(query, entities, {}, exact=True)
 
     def _guard(
-        self, rows: Sequence[dict[str, Any]], roles: frozenset[str]
+        self,
+        rows: Sequence[dict[str, Any]],
+        roles: frozenset[str],
+        tenant_id: str,
     ) -> list[dict[str, Any]]:
-        """纵深防御：在结果侧再核一次状态和角色。
+        """纵深防御：在结果侧再核一次状态、角色和租户。
 
         检索端的过滤表达式是第一道防线，但 Milvus 的 hybrid_search 已经出现过
         顶层 filter 被静默忽略的情况，所以这里独立复核一遍。allowed_roles 本来
@@ -664,6 +1186,8 @@ class MilvusHybridStore:
             if entity.get("status") != DocumentStatus.ACTIVE.value:
                 continue
             if not (frozenset(entity.get("allowed_roles") or ()) & roles):
+                continue
+            if entity.get("tenant_id") != tenant_id:
                 continue
             safe.append(row)
         return safe
@@ -681,4 +1205,9 @@ class MilvusHybridStore:
             version=entity["version"],
             status=DocumentStatus(entity["status"]),
             business_class=entity["business_class"],
+            parent_id=entity.get("parent_id") or None,
+            parent_content=entity.get("parent_content") or None,
+            section_title=entity.get("section_title") or None,
+            chunking_version=entity.get("chunking_version") or "legacy-characters-v1",
+            token_count=int(entity.get("token_count") or 0),
         )

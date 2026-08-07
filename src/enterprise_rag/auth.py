@@ -1,3 +1,4 @@
+import re
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
@@ -6,7 +7,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from enterprise_rag.config import Settings
-from enterprise_rag.models import Principal, TokenRequest
+from enterprise_rag.models import ROLE_PATTERN, Principal, TokenRequest
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -51,10 +52,18 @@ def get_principal(
 
     roles = payload.get("roles")
     subject = payload.get("sub")
+    tenant_id = payload.get("tenant_id")
     claims_are_valid = (
-        bool(subject)
+        isinstance(subject, str)
+        and bool(subject)
         and isinstance(roles, list)
-        and all(isinstance(role, str) for role in roles)
+        and bool(roles)
+        and all(
+            isinstance(role, str) and re.fullmatch(ROLE_PATTERN, role) is not None
+            for role in roles
+        )
+        and isinstance(tenant_id, str)
+        and re.fullmatch(r"[A-Za-z0-9_.:-]{1,64}", tenant_id) is not None
     )
     if not claims_are_valid:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid token claims")
@@ -62,7 +71,7 @@ def get_principal(
     return Principal(
         subject=subject,
         roles=frozenset(roles),
-        tenant_id=str(payload.get("tenant_id", "demo")),
+        tenant_id=tenant_id,
     )
 
 

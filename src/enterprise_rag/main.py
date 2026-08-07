@@ -10,7 +10,6 @@ from fastapi.staticfiles import StaticFiles
 
 from enterprise_rag.answering import (
     CitationConstrainedAnswerGenerator,
-    EvidenceAnswerGenerator,
 )
 from enterprise_rag.audit import JsonlAuditStore
 from enterprise_rag.auth import PrincipalDependency, create_access_token
@@ -22,17 +21,11 @@ from enterprise_rag.bootstrap import (
     seed_documents,
 )
 from enterprise_rag.chunking import build_document, chunk_document
+from enterprise_rag.components import build_runtime_components
 from enterprise_rag.config import Settings, get_settings
-from enterprise_rag.embeddings import (
-    BgeM3EmbeddingProvider,
-    CrossEncoderReranker,
-    HashingEmbeddingProvider,
-    NemotronEmbeddingProvider,
-)
 from enterprise_rag.feedback import JsonlFeedbackStore
 from enterprise_rag.graph import VersionedKnowledgeGraph
 from enterprise_rag.graph_retrieval import GraphRagRetriever
-from enterprise_rag.llm import OpenAiCompatibleChatModel
 from enterprise_rag.models import (
     AuditEvent,
     DocumentInput,
@@ -45,82 +38,9 @@ from enterprise_rag.models import (
     TokenRequest,
     TokenResponse,
 )
-from enterprise_rag.reranking import LlmReranker
-from enterprise_rag.retrieval import InMemoryHybridStore
 from enterprise_rag.router import RuleBasedRouter
 from enterprise_rag.service import EnterpriseRagService
 from enterprise_rag.sql_tool import ReadOnlySqlTool
-from enterprise_rag.vector_store import MilvusHybridStore
-
-
-def _embedding_provider(settings: Settings):
-    if settings.embedding_backend == "nemotron":
-        return NemotronEmbeddingProvider(
-            model_id=settings.nemotron_model_id,
-            dimensions=settings.nemotron_dimensions,
-            device=settings.nemotron_device,
-        )
-    if settings.embedding_backend == "bge_m3":
-        return BgeM3EmbeddingProvider(
-            model_id=settings.bge_model_id,
-            device=settings.bge_device,
-        )
-    return HashingEmbeddingProvider(settings.hashing_dimensions)
-
-
-def _chat_model(settings: Settings) -> OpenAiCompatibleChatModel | None:
-    api_key = settings.llm_api_key.get_secret_value()
-    if not (settings.llm_base_url and settings.llm_model and api_key):
-        return None
-    return OpenAiCompatibleChatModel(
-        base_url=settings.llm_base_url,
-        api_key=api_key,
-        model=settings.llm_model,
-        timeout_seconds=settings.llm_timeout_seconds,
-        max_tokens=settings.llm_max_tokens,
-        temperature=settings.llm_temperature,
-        max_retries=settings.llm_max_retries,
-    )
-
-
-def _reranker(settings: Settings, chat_model: OpenAiCompatibleChatModel | None):
-    if settings.reranker_backend == "cross_encoder":
-        return CrossEncoderReranker(
-            settings.reranker_model_id,
-            device=settings.reranker_device,
-        )
-    if settings.reranker_backend == "llm":
-        if chat_model is None:
-            raise RuntimeError("reranker_backend=llm 需要配置 llm_base_url/llm_model/llm_api_key")
-        return LlmReranker(chat_model, max_candidates=settings.rerank_candidates)
-    return None
-
-
-def _vector_store(settings: Settings, embeddings, reranker):
-    if settings.vector_backend == "milvus":
-        return MilvusHybridStore(
-            embeddings,
-            uri=settings.milvus_uri,
-            token=settings.milvus_token.get_secret_value(),
-            collection=settings.milvus_collection,
-            dense_weight=settings.dense_weight,
-            reranker=reranker,
-            search_multiplier=settings.milvus_search_multiplier,
-        )
-    return InMemoryHybridStore(
-        embeddings,
-        dense_weight=settings.dense_weight,
-        reranker=reranker,
-    )
-
-
-def _answer_generator(
-    settings: Settings, chat_model: OpenAiCompatibleChatModel | None
-) -> EvidenceAnswerGenerator:
-    if settings.llm_backend != "openai_compatible" or chat_model is None:
-        # 凭据不全时保持确定性摘录，而不是在运行期才因缺少配置失败。
-        return EvidenceAnswerGenerator()
-    return CitationConstrainedAnswerGenerator(chat_model, evidence_limit=settings.top_k)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -130,22 +50,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.settings = resolved_settings
         initialize_demo_data(resolved_settings.demo_db_path)
-        chat_model = _chat_model(resolved_settings)
-        store = _vector_store(
-            resolved_settings,
-            _embedding_provider(resolved_settings),
-            _reranker(resolved_settings, chat_model),
-        )
+        components = build_runtime_components(resolved_settings)
+        app.state.runtime_components = components
+        store = components.store
         if store.has_version(resolved_settings.index_version):
             # 持久化后端重启后直接挂载已发布版本，避免重复嵌入全量语料。
             store.rollback(resolved_settings.index_version)
         else:
             corpus_documents = load_documents(resolved_settings.corpus_path)
             source_documents = corpus_documents or seed_documents()
+            chunking_config = resolved_settings.chunking_config()
             indexed_items = []
             for document_input in source_documents:
                 document = build_document(document_input)
-                indexed_items.append((document, chunk_document(document)))
+                indexed_items.append(
+                    (document, chunk_document(document, config=chunking_config))
+                )
             store.upsert_documents(indexed_items)
             store.commit(resolved_settings.index_version)
         graph = VersionedKnowledgeGraph(resolved_settings.graph_state_path)
@@ -171,7 +91,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             retriever=retriever,
             sql_tool=ReadOnlySqlTool(resolved_settings.demo_db_path),
             audit=JsonlAuditStore(resolved_settings.audit_path),
-            answer_generator=_answer_generator(resolved_settings, chat_model),
+            answer_generator=components.answer_generator,
         )
         app.state.feedback = JsonlFeedbackStore(resolved_settings.feedback_path)
         yield

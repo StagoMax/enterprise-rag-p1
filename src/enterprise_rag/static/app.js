@@ -278,10 +278,10 @@ async function submitIngest(event) {
 function percent(value) { return `${(Number(value) * 100).toFixed(1)}%`; }
 function percentShort(value) { return (Number(value) * 100).toFixed(1); }
 
-const P2_METRIC_LABELS = [
+const GRAPH_RAG_METRIC_LABELS = [
   ["route_accuracy", "路由正确率"],
-  ["p1_retrieval_recall_at_3", "P1 Recall@3"],
-  ["p1_top1_citation_accuracy", "P1 Top-1"],
+  ["p1_retrieval_recall_at_3", "基础检索 Recall@3"],
+  ["p1_top1_citation_accuracy", "基础检索 Top-1"],
   ["mrr_at_3", "MRR@3"],
   ["ndcg_at_3", "nDCG@3"],
   ["graph_joint_recall_at_3", "图联合召回"],
@@ -338,7 +338,9 @@ async function loadEvaluation() {
     const report = await api("/v1/evaluation");
     showInlineError("#evaluation-error", "");
     renderRunSummary(report);
-    const labels = report.stage === "p2-experimental" ? P2_METRIC_LABELS : P1_METRIC_LABELS;
+    const labels = report.stage?.endsWith("-experimental")
+      ? GRAPH_RAG_METRIC_LABELS
+      : P1_METRIC_LABELS;
     const intervals = report.confidence_intervals ?? {};
     labels.forEach(([key, label]) => {
       // Older reports predate some metrics; skip rather than render NaN.

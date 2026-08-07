@@ -1,8 +1,21 @@
+import re
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
+
+DOCUMENT_ID_PATTERN = r"^[A-Za-z0-9_.:-]+$"
+ROLE_PATTERN = r"^[A-Za-z0-9_.:-]{1,64}$"
+
+
+def _clean_roles(value: set[str] | frozenset[str]) -> set[str]:
+    roles = {role.strip() for role in value if role.strip()}
+    if not roles:
+        raise ValueError("at least one role is required")
+    if any(re.fullmatch(ROLE_PATTERN, role) is None for role in roles):
+        raise ValueError("roles may contain only letters, numbers, '_', '.', ':', and '-'")
+    return roles
 
 
 class Route(StrEnum):
@@ -27,11 +40,25 @@ class GraphRelationType(StrEnum):
 class Principal(BaseModel):
     subject: str
     roles: frozenset[str]
-    tenant_id: str = "demo"
+    tenant_id: str = Field(
+        default="demo",
+        min_length=1,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9_.:-]+$",
+    )
+
+    @field_validator("roles")
+    @classmethod
+    def clean_roles(cls, value: frozenset[str]) -> frozenset[str]:
+        return frozenset(_clean_roles(value))
 
 
 class DocumentInput(BaseModel):
-    document_id: str = Field(min_length=1, max_length=128)
+    document_id: str = Field(
+        min_length=1,
+        max_length=128,
+        pattern=DOCUMENT_ID_PATTERN,
+    )
     title: str = Field(min_length=1, max_length=300)
     content: str = Field(min_length=1)
     owner: str = Field(min_length=1, max_length=128)
@@ -45,10 +72,7 @@ class DocumentInput(BaseModel):
     @field_validator("allowed_roles")
     @classmethod
     def clean_roles(cls, value: set[str]) -> set[str]:
-        roles = {role.strip() for role in value if role.strip()}
-        if not roles:
-            raise ValueError("at least one allowed role is required")
-        return roles
+        return _clean_roles(value)
 
 
 class DocumentRecord(DocumentInput):
@@ -67,11 +91,26 @@ class Chunk(BaseModel):
     version: str
     status: DocumentStatus
     business_class: str
+    # Structured indexes retrieve the focused child while answer generation may
+    # expand to its bounded logical parent. Defaults keep legacy indexes/callers valid.
+    parent_id: str | None = None
+    parent_content: str | None = None
+    section_title: str | None = None
+    chunking_version: str = "legacy-characters-v1"
+    token_count: int = Field(default=0, ge=0)
 
 
 class GraphEdge(BaseModel):
-    source_id: str = Field(min_length=1, max_length=128)
-    target_id: str = Field(min_length=1, max_length=128)
+    source_id: str = Field(
+        min_length=1,
+        max_length=128,
+        pattern=DOCUMENT_ID_PATTERN,
+    )
+    target_id: str = Field(
+        min_length=1,
+        max_length=128,
+        pattern=DOCUMENT_ID_PATTERN,
+    )
     relation: GraphRelationType = GraphRelationType.REFERENCES
     confidence: float = Field(default=1.0, ge=0, le=1)
     evidence_anchor: str | None = Field(default=None, max_length=500)
@@ -137,7 +176,17 @@ class QueryResponse(BaseModel):
 class TokenRequest(BaseModel):
     subject: str = "demo-user"
     roles: set[str] = Field(default_factory=lambda: {"engineering"})
-    tenant_id: str = "demo"
+    tenant_id: str = Field(
+        default="demo",
+        min_length=1,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9_.:-]+$",
+    )
+
+    @field_validator("roles")
+    @classmethod
+    def clean_roles(cls, value: set[str]) -> set[str]:
+        return _clean_roles(value)
 
 
 class TokenResponse(BaseModel):

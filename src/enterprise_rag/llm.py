@@ -48,6 +48,7 @@ class OpenAiCompatibleChatModel:
         self._max_retries = max(max_retries, 0)
         self._disable_thinking = disable_thinking
         self._owns_client = client is None
+        self.request_count = 0
         self._client = client or httpx.Client(
             base_url=base_url.rstrip("/"),
             timeout=timeout_seconds,
@@ -84,6 +85,7 @@ class OpenAiCompatibleChatModel:
 
         for attempt in range(self._max_retries + 1):
             try:
+                self.request_count += 1
                 response = self._client.post(
                     "/chat/completions",
                     json=self._payload(
@@ -99,12 +101,10 @@ class OpenAiCompatibleChatModel:
                     continue
                 if response.status_code in _RETRYABLE_STATUS:
                     last_error = LlmUnavailableError(
-                        f"生成后端返回可重试状态 {response.status_code}"
+                        self._error_description(response, retryable=True)
                     )
                 elif response.is_error:
-                    raise LlmUnavailableError(
-                        f"生成后端返回 {response.status_code}"
-                    )
+                    raise LlmUnavailableError(self._error_description(response))
                 else:
                     return self._extract(response.json())
 
@@ -112,6 +112,29 @@ class OpenAiCompatibleChatModel:
                 time.sleep(0.5 * (2**attempt))
 
         raise LlmUnavailableError(f"生成后端在重试后仍不可用：{last_error}")
+
+    @staticmethod
+    def _error_description(response: httpx.Response, *, retryable: bool = False) -> str:
+        prefix = "生成后端返回可重试状态" if retryable else "生成后端返回"
+        detail = ""
+        try:
+            body = response.json()
+        except (ValueError, TypeError):
+            body = None
+        if isinstance(body, dict):
+            error = body.get("error")
+            if isinstance(error, dict):
+                code = error.get("code")
+                message = error.get("message")
+                parts = [
+                    f"code={code}" if isinstance(code, str) and code else "",
+                    " ".join(message.split())[:300]
+                    if isinstance(message, str) and message
+                    else "",
+                ]
+                detail = "; ".join(part for part in parts if part)
+        suffix = f" ({detail})" if detail else ""
+        return f"{prefix} {response.status_code}{suffix}"
 
     @staticmethod
     def _extract(body: dict[str, object]) -> str:

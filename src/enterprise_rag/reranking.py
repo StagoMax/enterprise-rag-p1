@@ -11,6 +11,8 @@
 import json
 import re
 from collections.abc import Sequence
+from hashlib import sha256
+from pathlib import Path
 
 import numpy as np
 
@@ -67,21 +69,127 @@ class LlmReranker:
         *,
         max_candidates: int = 20,
         candidate_characters: int = 700,
+        cache_mode: str = "off",
+        cache_path: Path | None = None,
+        cache_namespace: str = "default",
     ) -> None:
+        if cache_mode not in {"off", "record", "replay"}:
+            raise ValueError(f"unsupported reranker cache mode: {cache_mode}")
+        if cache_mode != "off" and cache_path is None:
+            raise ValueError("reranker cache path is required for record/replay mode")
         self._model = model
         self._max_candidates = max_candidates
         self._candidate_characters = candidate_characters
+        self._cache_mode = cache_mode
+        self._cache_path = cache_path
+        self._cache_namespace = cache_namespace
+        self._cache: dict[str, list[float]] = {}
         self.last_error: str | None = None
         self.last_degraded = False
+        self.call_count = 0
+        self.degraded_count = 0
+        self.external_call_count = 0
+        self.cache_hit_count = 0
+        self.deterministic_call_count = 0
+        self.http_attempt_count = 0
+        self._judgement_hasher = sha256()
+        if cache_mode == "record" and cache_path is not None:
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            if cache_path.exists():
+                self._load_cache(cache_path)
+            else:
+                cache_path.touch()
+        elif cache_mode == "replay" and cache_path is not None:
+            self._load_cache(cache_path)
+
+    def _load_cache(self, path: Path) -> None:
+        if not path.exists():
+            raise RuntimeError(f"reranker replay cache does not exist: {path}")
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            key = str(row["key"])
+            scores = [float(value) for value in row["scores"]]
+            previous = self._cache.get(key)
+            if previous is not None and previous != scores:
+                raise RuntimeError(f"reranker replay cache has conflicting rows for key {key}")
+            self._cache[key] = scores
+
+    def _cache_key(self, query: str, documents: Sequence[str]) -> str:
+        payload = json.dumps(
+            [
+                self._cache_namespace,
+                _SYSTEM_PROMPT,
+                self._max_candidates,
+                self._candidate_characters,
+                query,
+                list(documents),
+            ],
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        return sha256(payload).hexdigest()
+
+    def _record_cache(self, key: str, scores: np.ndarray) -> None:
+        if self._cache_path is None:
+            return
+        values = [float(value) for value in scores]
+        self._cache[key] = values
+        with self._cache_path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps({"key": key, "scores": values}) + "\n")
+
+    def _observe_judgement(self, key: str, scores: np.ndarray) -> None:
+        payload = json.dumps(
+            {"key": key, "scores": [float(value) for value in scores]},
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+        self._judgement_hasher.update(len(payload).to_bytes(8, "big"))
+        self._judgement_hasher.update(payload)
+
+    @property
+    def judgement_digest(self) -> str:
+        return self._judgement_hasher.hexdigest()
+
+    def _finish(self, key: str, scores: np.ndarray) -> np.ndarray:
+        self._observe_judgement(key, scores)
+        return scores
 
     def score(self, query: str, documents: Sequence[str]) -> np.ndarray:
         self.last_error = None
         self.last_degraded = False
         count = len(documents)
-        if count == 0:
-            return np.empty(0, dtype=np.float32)
-        if count == 1:
-            return np.ones(1, dtype=np.float32)
+        cache_key = self._cache_key(query, documents)
+        self.call_count += 1
+        if self._cache_mode == "replay":
+            cached = self._cache.get(cache_key)
+            if cached is None:
+                raise RuntimeError(
+                    "reranker replay cache miss; candidate generation changed between A/B runs"
+                )
+            if len(cached) != count:
+                raise RuntimeError("reranker replay cache has an invalid score count")
+            self.cache_hit_count += 1
+            return self._finish(cache_key, np.asarray(cached, dtype=np.float32))
+
+        if self._cache_mode == "record" and cache_key in self._cache:
+            cached = self._cache[cache_key]
+            if len(cached) != count:
+                raise RuntimeError("reranker record cache has an invalid score count")
+            self.cache_hit_count += 1
+            return self._finish(cache_key, np.asarray(cached, dtype=np.float32))
+
+        if count <= 1:
+            scores = (
+                np.empty(0, dtype=np.float32)
+                if count == 0
+                else np.ones(1, dtype=np.float32)
+            )
+            self.deterministic_call_count += 1
+            if self._cache_mode == "record":
+                self._record_cache(cache_key, scores)
+            return self._finish(cache_key, scores)
 
         # 只重排前若干个；其余保持原有相对顺序并排在后面。
         window = min(count, self._max_candidates)
@@ -92,18 +200,34 @@ class LlmReranker:
         listing = "\n\n".join(entries)
         prompt = f"【问题】\n{query}\n\n【候选片段】\n{listing}"
 
+        self.external_call_count += 1
+        request_count_before = getattr(self._model, "request_count", None)
         try:
             raw = self._model.complete(_SYSTEM_PROMPT, prompt)
         except LlmUnavailableError as exc:
             self.last_error = str(exc)
             self.last_degraded = True
-            return self._identity(count)
+            self.degraded_count += 1
+            if self._cache_mode == "record":
+                raise RuntimeError(
+                    "reranker record failed; refusing to create an incomplete A/B cache"
+                ) from exc
+            return self._finish(cache_key, self._identity(count))
+        finally:
+            request_count_after = getattr(self._model, "request_count", None)
+            if isinstance(request_count_before, int) and isinstance(request_count_after, int):
+                self.http_attempt_count += max(request_count_after - request_count_before, 0)
 
         order = parse_ranking(raw, window)
         if not order:
             self.last_error = f"无法解析重排输出：{raw[:120]}"
             self.last_degraded = True
-            return self._identity(count)
+            self.degraded_count += 1
+            if self._cache_mode == "record":
+                raise RuntimeError(
+                    "reranker record produced an invalid ranking; refusing to cache it"
+                )
+            return self._finish(cache_key, self._identity(count))
 
         scores = np.zeros(count, dtype=np.float32)
         # 窗口内按名次给分，窗口外统一低于窗口内且保持原序。
@@ -111,7 +235,9 @@ class LlmReranker:
             scores[index] = float(count - rank)
         for position in range(window, count):
             scores[position] = float(count - window - position) * 0.001
-        return scores
+        if self._cache_mode == "record":
+            self._record_cache(cache_key, scores)
+        return self._finish(cache_key, scores)
 
     @staticmethod
     def _identity(count: int) -> np.ndarray:

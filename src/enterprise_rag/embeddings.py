@@ -54,9 +54,17 @@ class HashingEmbeddingProvider:
 class NemotronEmbeddingProvider:
     """Lazy Sentence Transformers adapter for NVIDIA Nemotron 3 Embed."""
 
-    def __init__(self, model_id: str, dimensions: int = 1024, device: str = "cuda") -> None:
+    def __init__(
+        self,
+        model_id: str,
+        dimensions: int = 1024,
+        device: str = "cuda",
+        batch_size: int = 8,
+    ) -> None:
         if dimensions not in {512, 1024, 2048}:
             raise ValueError("Nemotron 3 Embed 1B supports 512, 1024, or 2048 dimensions")
+        if batch_size < 1:
+            raise ValueError("batch_size must be positive")
 
         try:
             from sentence_transformers import SentenceTransformer
@@ -66,13 +74,14 @@ class NemotronEmbeddingProvider:
             ) from exc
 
         self.dimensions = dimensions
+        self._batch_size = batch_size
         self._model = SentenceTransformer(model_id, device=device)
         self._model.max_seq_length = 32768
 
     def _embed(self, texts: Sequence[str], prefix: str) -> np.ndarray:
         vectors = self._model.encode(
             [f"{prefix}: {text}" for text in texts],
-            batch_size=8,
+            batch_size=self._batch_size,
             normalize_embeddings=True,
             convert_to_numpy=True,
             show_progress_bar=len(texts) > 32,

@@ -2,6 +2,7 @@
 .pytest_cache/
 .ruff_cache/
 .venv/
+.tmp/
 __pycache__/
 *.py[cod]
 *.sqlite
@@ -13,6 +14,7 @@ data/feedback.jsonl
 data/*graph-state*.json
 data/raw/
 data/milvus/
+data/milvus-standalone/
 .cache/
 models/
 reports/*.tmp

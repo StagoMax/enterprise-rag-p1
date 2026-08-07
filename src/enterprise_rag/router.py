@@ -44,18 +44,18 @@ class RuleBasedRouter:
                 confidence=0.92,
                 reason="问题要求结构化聚合或精确数值，应查询权威数据库",
             )
-        if self._matches(self._exact_patterns, question):
-            return RouteDecision(
-                route=Route.EXACT_SEARCH,
-                confidence=0.9,
-                reason="问题包含编号、错误码或版本等精确定位条件",
-            )
         if self._matches(self._graph_patterns, question):
             return RouteDecision(
                 route=Route.RAG,
                 confidence=0.9,
                 reason="问题要求沿已发布文档关系进行跨文档检索",
                 graph_expansion=True,
+            )
+        if self._matches(self._exact_patterns, question):
+            return RouteDecision(
+                route=Route.EXACT_SEARCH,
+                confidence=0.9,
+                reason="问题包含编号、错误码或版本等精确定位条件",
             )
         return RouteDecision(
             route=Route.RAG,
