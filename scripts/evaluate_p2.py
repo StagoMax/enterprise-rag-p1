@@ -240,6 +240,8 @@ def _candidate_trace(
     principal: Principal,
     expected: set[str],
     limit: int,
+    *,
+    require_full: bool = False,
 ) -> list[dict[str, Any]]:
     hits = components.store.search(
         question,
@@ -248,6 +250,14 @@ def _candidate_trace(
         exact=False,
         min_score=settings.min_retrieval_score,
     )
+    document_ids = [hit.chunk.document_id for hit in hits]
+    if len(document_ids) != len(set(document_ids)):
+        raise RuntimeError("candidate diagnostics returned duplicate documents")
+    if require_full and len(hits) != limit:
+        raise RuntimeError(
+            "candidate diagnostics require exactly distinct documents: "
+            f"required={limit}, returned={len(hits)}, unique={len(set(document_ids))}"
+        )
     base_order = sorted(
         enumerate(hits),
         key=lambda item: (-item[1].score, item[0]),
@@ -271,6 +281,122 @@ def _candidate_trace(
         }
         for final_rank, hit in enumerate(hits, start=1)
     ]
+
+
+def _candidate_funnel(
+    candidate_traces: list[dict[str, Any]],
+    semantic_rag_rows: list[dict[str, Any]],
+    *,
+    candidate_limit: int,
+    output_limit: int,
+    reranked: bool,
+) -> dict[str, Any]:
+    """Split end-to-end misses into candidate-recall and downstream-ranking stages."""
+    if not candidate_traces:
+        return {
+            "enabled": False,
+            "candidate_limit": candidate_limit,
+            "output_limit": output_limit,
+            "reranked": reranked,
+            "queries": 0,
+            "candidate_hit_count": 0,
+            "candidate_miss_count": 0,
+            "candidate_miss_ids": [],
+            "candidate_hit_but_top3_miss_ids": [],
+            "candidate_hit_but_top1_miss_ids": [],
+            "base_top3_hit_ids": [],
+            "base_top1_hit_ids": [],
+            "rerank_rescue_ids": [],
+            "rerank_regression_ids": [],
+            "rerank_top1_rescue_ids": [],
+            "rerank_top1_regression_ids": [],
+            "candidate_hit_not_promoted_ids": [],
+            "final_top3_hit_outside_candidate_ids": [],
+            "set_relationship_valid": None,
+        }
+
+    result_by_id = {str(row["id"]): row for row in semantic_rag_rows}
+    trace_by_id = {str(trace["id"]): trace for trace in candidate_traces}
+    if trace_by_id.keys() != result_by_id.keys():
+        missing_traces = sorted(result_by_id.keys() - trace_by_id.keys())
+        missing_results = sorted(trace_by_id.keys() - result_by_id.keys())
+        raise RuntimeError(
+            "candidate diagnostics and semantic results cover different queries: "
+            f"missing_traces={missing_traces}, missing_results={missing_results}"
+        )
+
+    candidate_hit_ids = {
+        row_id for row_id, trace in trace_by_id.items() if trace["gold_in_candidates"]
+    }
+    all_ids = set(trace_by_id)
+    base_top3_hit_ids = {
+        row_id
+        for row_id, trace in trace_by_id.items()
+        if any(
+            candidate["is_gold"] and candidate["base_rank"] <= output_limit
+            for candidate in trace["candidates"]
+        )
+    }
+    base_top1_hit_ids = {
+        row_id
+        for row_id, trace in trace_by_id.items()
+        if any(
+            candidate["is_gold"] and candidate["base_rank"] == 1
+            for candidate in trace["candidates"]
+        )
+    }
+    final_top3_hit_ids = {
+        row_id for row_id, row in result_by_id.items() if row["evidence_recalled"]
+    }
+    final_top1_hit_ids = {
+        row_id for row_id, row in result_by_id.items() if row["top1_correct"]
+    }
+    eligible_final_top3_ids = final_top3_hit_ids & candidate_hit_ids
+    eligible_final_top1_ids = final_top1_hit_ids & candidate_hit_ids
+    final_top3_outside_candidate_ids = final_top3_hit_ids - candidate_hit_ids
+
+    return {
+        "enabled": True,
+        "candidate_limit": candidate_limit,
+        "output_limit": output_limit,
+        "reranked": reranked,
+        "queries": len(all_ids),
+        "candidate_hit_count": len(candidate_hit_ids),
+        "candidate_miss_count": len(all_ids - candidate_hit_ids),
+        "candidate_miss_ids": sorted(all_ids - candidate_hit_ids),
+        "candidate_recall": round(len(candidate_hit_ids) / max(len(all_ids), 1), 4),
+        "base_top3_hit_count": len(base_top3_hit_ids),
+        "base_top3_hit_ids": sorted(base_top3_hit_ids),
+        "base_top1_hit_count": len(base_top1_hit_ids),
+        "base_top1_hit_ids": sorted(base_top1_hit_ids),
+        "base_conditional_recall_at_3": round(
+            len(base_top3_hit_ids) / max(len(candidate_hit_ids), 1), 4
+        ),
+        "base_conditional_top1_accuracy": round(
+            len(base_top1_hit_ids) / max(len(candidate_hit_ids), 1), 4
+        ),
+        "final_top3_hit_count": len(final_top3_hit_ids),
+        "final_top1_hit_count": len(final_top1_hit_ids),
+        "eligible_final_top3_hit_count": len(eligible_final_top3_ids),
+        "eligible_final_top1_hit_count": len(eligible_final_top1_ids),
+        "conditional_recall_at_3": round(
+            len(eligible_final_top3_ids) / max(len(candidate_hit_ids), 1), 4
+        ),
+        "conditional_top1_accuracy": round(
+            len(eligible_final_top1_ids) / max(len(candidate_hit_ids), 1), 4
+        ),
+        "candidate_hit_but_top3_miss_ids": sorted(candidate_hit_ids - final_top3_hit_ids),
+        "candidate_hit_but_top1_miss_ids": sorted(candidate_hit_ids - final_top1_hit_ids),
+        "rerank_rescue_ids": sorted(eligible_final_top3_ids - base_top3_hit_ids),
+        "rerank_regression_ids": sorted(base_top3_hit_ids - final_top3_hit_ids),
+        "rerank_top1_rescue_ids": sorted(eligible_final_top1_ids - base_top1_hit_ids),
+        "rerank_top1_regression_ids": sorted(base_top1_hit_ids - final_top1_hit_ids),
+        "candidate_hit_not_promoted_ids": sorted(
+            candidate_hit_ids - base_top3_hit_ids - final_top3_hit_ids
+        ),
+        "final_top3_hit_outside_candidate_ids": sorted(final_top3_outside_candidate_ids),
+        "set_relationship_valid": not final_top3_outside_candidate_ids,
+    }
 
 
 def evaluate(
@@ -333,6 +459,7 @@ def evaluate(
                 principal,
                 expected,
                 candidate_limit,
+                require_full=True,
             )
             candidate_traces.append(
                 {
@@ -428,6 +555,13 @@ def evaluate(
     hybrid_target_recall = rate(graph_rows, "hybrid_target_recalled")
     semantic_metrics = _retrieval_slice_metrics(semantic_rag_rows)
     exact_search_metrics = _retrieval_slice_metrics(exact_search_rows)
+    retrieval_funnel = _candidate_funnel(
+        candidate_traces,
+        semantic_rag_rows,
+        candidate_limit=candidate_limit,
+        output_limit=settings.top_k,
+        reranked=settings.reranker_backend != "none",
+    )
     metrics = {
         "route_accuracy": rate(results, "route_correct"),
         "p1_retrieval_recall_at_3": rate(p1_retrieval, "evidence_recalled"),
@@ -473,6 +607,22 @@ def evaluate(
         "p95_latency_ms": round(percentile(latencies, 0.95), 2),
         "index_seconds": round(index_seconds, 2),
     }
+    if candidate_diagnostics:
+        metrics[f"semantic_rag_recall_at_{candidate_limit}"] = retrieval_funnel[
+            "candidate_recall"
+        ]
+        metrics["semantic_rag_base_conditional_recall_at_3"] = retrieval_funnel[
+            "base_conditional_recall_at_3"
+        ]
+        metrics["semantic_rag_base_conditional_top1_accuracy"] = retrieval_funnel[
+            "base_conditional_top1_accuracy"
+        ]
+        metrics["semantic_rag_conditional_recall_at_3"] = retrieval_funnel[
+            "conditional_recall_at_3"
+        ]
+        metrics["semantic_rag_conditional_top1_accuracy"] = retrieval_funnel[
+            "conditional_top1_accuracy"
+        ]
     evaluated_categories = set(category_rows)
     thresholds = _quality_thresholds(
         evaluated_categories,
@@ -501,6 +651,31 @@ def evaluate(
         "answer_span_hit_rate": counts(answer_rows, "answer_span_hit"),
         "answer_span_hit_rate_fitting": counts(fitting_answer_rows, "answer_span_hit_fitting"),
     }
+    if candidate_diagnostics:
+        proportion_samples.update(
+            {
+                f"semantic_rag_recall_at_{candidate_limit}": (
+                    retrieval_funnel["candidate_hit_count"],
+                    retrieval_funnel["queries"],
+                ),
+                "semantic_rag_base_conditional_recall_at_3": (
+                    retrieval_funnel["base_top3_hit_count"],
+                    retrieval_funnel["candidate_hit_count"],
+                ),
+                "semantic_rag_base_conditional_top1_accuracy": (
+                    retrieval_funnel["base_top1_hit_count"],
+                    retrieval_funnel["candidate_hit_count"],
+                ),
+                "semantic_rag_conditional_recall_at_3": (
+                    retrieval_funnel["eligible_final_top3_hit_count"],
+                    retrieval_funnel["candidate_hit_count"],
+                ),
+                "semantic_rag_conditional_top1_accuracy": (
+                    retrieval_funnel["eligible_final_top1_hit_count"],
+                    retrieval_funnel["candidate_hit_count"],
+                ),
+            }
+        )
     confidence_intervals = {
         key: {
             "successes": successes,
@@ -593,8 +768,19 @@ def evaluate(
             "enabled": candidate_diagnostics,
             "limit": candidate_limit,
             "reranked": settings.reranker_backend != "none",
+            "all_queries_full": (
+                all(len(trace["candidates"]) == candidate_limit for trace in candidate_traces)
+                if candidate_diagnostics
+                else None
+            ),
+            "minimum_unique_documents": (
+                min((len(trace["candidates"]) for trace in candidate_traces), default=0)
+                if candidate_diagnostics
+                else None
+            ),
             "queries": candidate_traces,
         },
+        "retrieval_funnel": retrieval_funnel,
         "passed_point_estimates": all(checks.values()),
         "passed": all(checks.values()) and all(confidence_checks.values()),
         "by_category": {
@@ -721,6 +907,47 @@ def write_report(report: dict[str, Any], output: Path) -> None:
             f"Index time: {report['metrics']['index_seconds']} s",
         ]
     )
+    funnel = report.get("retrieval_funnel", {})
+    if funnel.get("enabled"):
+        ranking_index = lines.index("## Ranking and answer quality")
+        funnel_lines = [
+            "## Candidate-to-ranking funnel",
+            "",
+            "| Stage | Hits | Denominator | Conditional rate |",
+            "|---|---:|---:|---:|",
+            f"| Candidate Recall@{funnel['candidate_limit']} | "
+            f"{funnel['candidate_hit_count']} | {funnel['queries']} | "
+            f"{funnel['candidate_recall']:.4f} |",
+            f"| Candidate base Recall@{funnel['output_limit']} | "
+            f"{funnel['base_top3_hit_count']} | "
+            f"{funnel['candidate_hit_count']} | "
+            f"{funnel['base_conditional_recall_at_3']:.4f} |",
+            f"| Final Recall@{funnel['output_limit']} given candidate hit | "
+            f"{funnel['eligible_final_top3_hit_count']} | "
+            f"{funnel['candidate_hit_count']} | "
+            f"{funnel['conditional_recall_at_3']:.4f} |",
+            "| Candidate base Top-1 | "
+            f"{funnel['base_top1_hit_count']} | "
+            f"{funnel['candidate_hit_count']} | "
+            f"{funnel['base_conditional_top1_accuracy']:.4f} |",
+            "| Final Top-1 given candidate hit | "
+            f"{funnel['eligible_final_top1_hit_count']} | "
+            f"{funnel['candidate_hit_count']} | "
+            f"{funnel['conditional_top1_accuracy']:.4f} |",
+            "",
+            "- Upstream candidate misses: "
+            + (", ".join(funnel["candidate_miss_ids"]) or "none"),
+            "- Candidate hits dropped before final Top-3: "
+            + (", ".join(funnel["candidate_hit_but_top3_miss_ids"]) or "none"),
+            "- Rerank rescues versus candidate base Top-3: "
+            + (", ".join(funnel["rerank_rescue_ids"]) or "none"),
+            "- Rerank regressions versus candidate base Top-3: "
+            + (", ".join(funnel["rerank_regression_ids"]) or "none"),
+            f"- Final Top-3 is a subset of the candidate pool: "
+            f"{funnel['set_relationship_valid']}",
+            "",
+        ]
+        lines[ranking_index:ranking_index] = funnel_lines
     output.with_suffix(".md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -743,6 +970,13 @@ def main() -> None:
     parser.add_argument("--milvus-collection")
     parser.add_argument("--dense-weight", type=float)
     parser.add_argument("--search-multiplier", type=int)
+    parser.add_argument(
+        "--adaptive-recall",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Expand chunk recall until the requested number of distinct documents is found.",
+    )
+    parser.add_argument("--adaptive-recall-max-chunks", type=int)
     parser.add_argument("--milvus-search-mode", choices=["separate", "native_rrf"])
     parser.add_argument(
         "--fielded-search",
@@ -756,6 +990,11 @@ def main() -> None:
     )
     parser.add_argument("--hybrid-rrf-k", type=int)
     parser.add_argument("--top-k", type=int)
+    parser.add_argument("--min-retrieval-score", type=float)
+    parser.add_argument("--chunk-max-tokens", type=int)
+    parser.add_argument("--chunk-overlap-tokens", type=int)
+    parser.add_argument("--chunk-parent-max-tokens", type=int)
+    parser.add_argument("--chunking-version")
     parser.add_argument("--reranker", choices=["none", "cross_encoder", "llm"])
     parser.add_argument("--reranker-model")
     parser.add_argument("--reranker-device")
@@ -807,6 +1046,8 @@ def main() -> None:
         parser.error("--rerank-rrf-k must be positive")
     if args.hybrid_rrf_k is not None and args.hybrid_rrf_k < 1:
         parser.error("--hybrid-rrf-k must be positive")
+    if args.adaptive_recall_max_chunks is not None and args.adaptive_recall_max_chunks < 1:
+        parser.error("--adaptive-recall-max-chunks must be positive")
 
     base_settings = Settings()
     embedding_backend = args.backend or base_settings.embedding_backend
@@ -846,6 +1087,15 @@ def main() -> None:
         milvus_collection=args.milvus_collection or base_settings.milvus_collection,
         dense_weight=dense_weight,
         milvus_search_multiplier=search_multiplier,
+        milvus_adaptive_recall_enabled=(
+            args.adaptive_recall
+            if args.adaptive_recall is not None
+            else base_settings.milvus_adaptive_recall_enabled
+        ),
+        milvus_adaptive_recall_max_chunks=(
+            args.adaptive_recall_max_chunks
+            or base_settings.milvus_adaptive_recall_max_chunks
+        ),
         milvus_search_mode=args.milvus_search_mode or base_settings.milvus_search_mode,
         milvus_fielded_search_enabled=(
             args.fielded_search
@@ -859,6 +1109,16 @@ def main() -> None:
         ),
         milvus_rrf_k=args.hybrid_rrf_k or base_settings.milvus_rrf_k,
         top_k=args.top_k or base_settings.top_k,
+        chunk_max_tokens=args.chunk_max_tokens or base_settings.chunk_max_tokens,
+        chunk_overlap_tokens=(
+            args.chunk_overlap_tokens
+            if args.chunk_overlap_tokens is not None
+            else base_settings.chunk_overlap_tokens
+        ),
+        chunk_parent_max_tokens=(
+            args.chunk_parent_max_tokens or base_settings.chunk_parent_max_tokens
+        ),
+        chunking_version=args.chunking_version or base_settings.chunking_version,
         reranker_backend=args.reranker or base_settings.reranker_backend,
         reranker_model_id=args.reranker_model or base_settings.reranker_model_id,
         reranker_device=(args.reranker_device or args.device or base_settings.reranker_device),
@@ -883,7 +1143,11 @@ def main() -> None:
         graph_state_path=Path(f"data/{evaluation_prefix}-graph-state.json"),
         audit_path=Path(f"data/{evaluation_prefix}-audit.jsonl"),
         demo_db_path=Path(f"data/{evaluation_prefix}.sqlite"),
-        min_retrieval_score=0.08,
+        min_retrieval_score=(
+            args.min_retrieval_score
+            if args.min_retrieval_score is not None
+            else 0.08
+        ),
         **overrides,
     )
     report = evaluate(
