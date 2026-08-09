@@ -1,0 +1,182 @@
+{
+  "title": "P3 legacy character chunking fair ablation",
+  "date": "2026-08-08",
+  "conclusion": "Legacy 900/100 character chunking is not the final winner. Structured 256/48 with gpt-5.6-sol wins Recall@3, MRR, and nDCG while staying within one Top-1 hit of legacy; legacy remains strongest for DeepSeek top-1 and extractive answer quality.",
+  "protocol": {
+    "documents": 28481,
+    "questions": 55,
+    "gold_sha256": "add680e5be945fd9b2aee07c25b6a0d103228a9f7432896fea0746a5c162d74c",
+    "embedding": "Nemotron 1024",
+    "dense_weight": 0.7,
+    "search_mode": "native_rrf",
+    "fielded_search": true,
+    "query_rewrite": true,
+    "search_multiplier": 30,
+    "initial_chunk_candidates": 600,
+    "adaptive_recall_max_chunks": 4096,
+    "candidate_documents": 20,
+    "min_retrieval_score": 0,
+    "rerank_strategy": "replace",
+    "answer_generator": "extractive"
+  },
+  "strategies": {
+    "legacy_900_100": {
+      "chunks": 147358,
+      "native": {
+        "recall_at_20": 0.9273,
+        "recall_at_3": 0.6727,
+        "top1": 0.4364,
+        "mrr_at_3": 0.5303,
+        "ndcg_at_3": 0.5533,
+        "fitting_answer_hit": 0.275,
+        "answer_content_recall": 0.4377
+      },
+      "deepseek_v4_flash": {
+        "recall_at_3": 0.8182,
+        "top1": 0.7091,
+        "mrr_at_3": 0.7606,
+        "ndcg_at_3": 0.7685,
+        "fitting_answer_hit": 0.425,
+        "answer_content_recall": 0.4794,
+        "p50_latency_ms": 5732.92,
+        "p95_latency_ms": 8539.42
+      },
+      "gpt_5_6_luna": {
+        "recall_at_3": 0.8,
+        "top1": 0.6545,
+        "mrr_at_3": 0.7212,
+        "ndcg_at_3": 0.7345,
+        "fitting_answer_hit": 0.375,
+        "answer_content_recall": 0.4802,
+        "latency_comparable": false
+      },
+      "gpt_5_6_sol": {
+        "recall_at_3": 0.8364,
+        "top1": 0.6909,
+        "mrr_at_3": 0.7576,
+        "ndcg_at_3": 0.7779,
+        "fitting_answer_hit": 0.4,
+        "answer_content_recall": 0.4833,
+        "p50_latency_ms": 20183.39,
+        "p95_latency_ms": 35364.33,
+        "latency_comparable": true
+      }
+    },
+    "structured_384_64": {
+      "chunks": 82228,
+      "native": {
+        "recall_at_20": 0.9455,
+        "recall_at_3": 0.6545,
+        "top1": 0.4727,
+        "mrr_at_3": 0.5455,
+        "ndcg_at_3": 0.5661,
+        "fitting_answer_hit": 0.325,
+        "answer_content_recall": 0.4306
+      },
+      "deepseek_v4_flash": {
+        "recall_at_3": 0.8364,
+        "top1": 0.6,
+        "mrr_at_3": 0.703,
+        "ndcg_at_3": 0.7302,
+        "fitting_answer_hit": 0.35,
+        "answer_content_recall": 0.4495,
+        "p50_latency_ms": 6134.23,
+        "p95_latency_ms": 8433.05
+      },
+      "gpt_5_6_luna": {
+        "recall_at_3": 0.8364,
+        "top1": 0.6182,
+        "mrr_at_3": 0.7151,
+        "ndcg_at_3": 0.7393,
+        "fitting_answer_hit": 0.325,
+        "answer_content_recall": 0.4605,
+        "p50_latency_ms": 15037.09,
+        "p95_latency_ms": 24028.52
+      },
+      "gpt_5_6_sol": {
+        "recall_at_3": 0.8909,
+        "top1": 0.6364,
+        "mrr_at_3": 0.7576,
+        "ndcg_at_3": 0.7922,
+        "fitting_answer_hit": 0.375,
+        "answer_content_recall": 0.4869,
+        "latency_comparable": false
+      }
+    },
+    "structured_320_48": {
+      "chunks": 97288,
+      "native": {
+        "recall_at_20": 0.9273,
+        "recall_at_3": 0.6545,
+        "top1": 0.4545,
+        "mrr_at_3": 0.5394,
+        "ndcg_at_3": 0.5618,
+        "fitting_answer_hit": 0.325,
+        "answer_content_recall": 0.4363
+      }
+    },
+    "structured_256_48": {
+      "chunks": 119467,
+      "native": {
+        "recall_at_20": 0.9455,
+        "recall_at_3": 0.7091,
+        "top1": 0.4182,
+        "mrr_at_3": 0.5424,
+        "ndcg_at_3": 0.5758,
+        "fitting_answer_hit": 0.325,
+        "answer_content_recall": 0.4373
+      },
+      "deepseek_v4_flash": {
+        "recall_at_3": 0.8364,
+        "top1": 0.5818,
+        "mrr_at_3": 0.7,
+        "ndcg_at_3": 0.7308,
+        "fitting_answer_hit": 0.325,
+        "answer_content_recall": 0.4545,
+        "p50_latency_ms": 5709.41,
+        "p95_latency_ms": 7730.16
+      },
+      "gpt_5_6_luna": {
+        "recall_at_3": 0.8545,
+        "top1": 0.5818,
+        "mrr_at_3": 0.7091,
+        "ndcg_at_3": 0.7453,
+        "fitting_answer_hit": 0.325,
+        "answer_content_recall": 0.467,
+        "p50_latency_ms": 14847.05,
+        "p95_latency_ms": 25022.6
+      },
+      "gpt_5_6_sol": {
+        "recall_at_3": 0.8909,
+        "top1": 0.6727,
+        "mrr_at_3": 0.7758,
+        "ndcg_at_3": 0.8056,
+        "fitting_answer_hit": 0.375,
+        "answer_content_recall": 0.4852,
+        "latency_comparable": false
+      }
+    }
+  },
+  "selection": {
+    "native_or_recall_first": "structured_256_48",
+    "deepseek_balanced_ranking_and_answer_quality": "legacy_900_100",
+    "gpt_recall_first": "structured_256_48",
+    "gpt_5_6_sol_final": "structured_256_48",
+    "recommended_final": "structured_256_48_with_gpt_5_6_sol"
+  },
+  "audit": {
+    "all_native_queries_have_20_documents": true,
+    "all_reranker_caches_have_55_unique_keys": true,
+    "all_reranker_cache_rows_have_20_scores": true,
+    "legacy_deepseek_external_calls": 55,
+    "legacy_deepseek_degraded_calls": 0,
+    "legacy_gpt_completed_from_cache_and_resume": true,
+    "legacy_gpt_first_attempt_cached_rows": 43,
+    "legacy_gpt_resume_external_calls": 12,
+    "legacy_gpt_degraded_calls": 0,
+    "all_sol_reranker_caches_have_55_unique_keys": true,
+    "all_sol_reranker_cache_rows_have_20_scores": true,
+    "all_sol_reports_use_gpt_5_6_sol": true,
+    "all_sol_reports_have_zero_degraded_calls": true
+  }
+}

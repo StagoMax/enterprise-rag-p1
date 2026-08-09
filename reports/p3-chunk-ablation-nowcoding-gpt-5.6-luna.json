@@ -1,0 +1,49 @@
+{
+  "provider": "nowcoding",
+  "model": "gpt-5.6-luna",
+  "strategy": "replace",
+  "retrieval_contract": {
+    "questions": 55,
+    "candidate_documents": 20,
+    "chunk_budget": 600,
+    "adaptive_recall_max_chunks": 4096,
+    "min_retrieval_score": 0.0
+  },
+  "cache_audit": {
+    "logical_calls_per_group": 55,
+    "external_calls_per_group": 55,
+    "degraded_calls": 0,
+    "cache_rows_per_group": 55,
+    "scores_per_cache_row": 20
+  },
+  "results": [
+    {
+      "parameters": "384/64",
+      "native_recall_at_20": 0.9455,
+      "native_recall_at_3": 0.6545,
+      "native_top1": 0.4727,
+      "deepseek_recall_at_3": 0.8364,
+      "deepseek_top1": 0.6,
+      "gpt_recall_at_3": 0.8364,
+      "gpt_top1": 0.6182,
+      "gpt_p50_latency_ms": 15037.09,
+      "gpt_p95_latency_ms": 24028.52
+    },
+    {
+      "parameters": "256/48",
+      "native_recall_at_20": 0.9455,
+      "native_recall_at_3": 0.7091,
+      "native_top1": 0.4182,
+      "deepseek_recall_at_3": 0.8364,
+      "deepseek_top1": 0.5818,
+      "gpt_recall_at_3": 0.8545,
+      "gpt_top1": 0.5818,
+      "gpt_p50_latency_ms": 14847.05,
+      "gpt_p95_latency_ms": 25022.6
+    }
+  ],
+  "gpt_selection": {
+    "recall_at_3_priority": "256/48",
+    "top1_priority": "384/64"
+  }
+}

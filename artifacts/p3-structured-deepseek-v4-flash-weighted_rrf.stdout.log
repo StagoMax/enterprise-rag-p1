@@ -1,0 +1,32 @@
+{
+  "backend": "nemotron",
+  "passed": false,
+  "documents": 28481,
+  "relations": 7600,
+  "metrics": {
+    "route_accuracy": 1.0,
+    "p1_retrieval_recall_at_3": 0.8,
+    "p1_top1_citation_accuracy": 0.5636,
+    "semantic_rag_recall_at_3": 0.8,
+    "semantic_rag_top1_citation_accuracy": 0.5636,
+    "exact_search_recall_at_3": 0.0,
+    "exact_search_top1_citation_accuracy": 0.0,
+    "graph_joint_recall_at_3": 0.0,
+    "graph_target_recall_at_3": 0.0,
+    "graph_path_accuracy": 0.0,
+    "graph_hybrid_target_recall_at_3": 0.0,
+    "graph_recall_gain": 0.0,
+    "graph_acl_isolation": 0.0,
+    "permission_isolation": 1.0,
+    "refusal_accuracy": 0.0,
+    "tool_answer_accuracy": 0.0,
+    "answer_span_hit_rate": 0.2545,
+    "answer_span_hit_rate_fitting": 0.3,
+    "answer_content_recall": 0.4324,
+    "mrr_at_3": 0.6576,
+    "ndcg_at_3": 0.6867,
+    "p50_latency_ms": 1134.45,
+    "p95_latency_ms": 1690.62,
+    "index_seconds": 20.23
+  }
+}

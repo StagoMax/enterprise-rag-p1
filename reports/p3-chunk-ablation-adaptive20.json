@@ -1,0 +1,77 @@
+{
+  "selection_rule": [
+    "semantic_rag_recall_at_20",
+    "semantic_rag_recall_at_3",
+    "semantic_rag_top1_citation_accuracy"
+  ],
+  "retrieval_contract": {
+    "questions": 55,
+    "distinct_documents_per_query": 20,
+    "search_multiplier": 30,
+    "initial_chunk_budget": 600,
+    "adaptive_recall_max_chunks": 4096,
+    "min_retrieval_score": 0.0,
+    "reranker": "none"
+  },
+  "indexes": [
+    {
+      "parameters": "384/64",
+      "alias": "enterprise_chunks_structured",
+      "version": "p3-techqa-28481-nemotron-1024-structured-v1",
+      "chunks": 82228,
+      "documents": 28481,
+      "recall_at_20": 0.9455,
+      "recall_at_3": 0.6545,
+      "top1": 0.4727,
+      "rank": 2,
+      "selected_for_deepseek": true
+    },
+    {
+      "parameters": "320/48",
+      "alias": "enterprise_chunks_structured_320_48",
+      "version": "p3-techqa-28481-nemotron-1024-structured-320-48-v1",
+      "chunks": 97288,
+      "documents": 28481,
+      "recall_at_20": 0.9273,
+      "recall_at_3": 0.6545,
+      "top1": 0.4545,
+      "rank": 3,
+      "selected_for_deepseek": false
+    },
+    {
+      "parameters": "256/48",
+      "alias": "enterprise_chunks_structured_256_48",
+      "version": "p3-techqa-28481-nemotron-1024-structured-256-48-v1",
+      "chunks": 119467,
+      "documents": 28481,
+      "recall_at_20": 0.9455,
+      "recall_at_3": 0.7091,
+      "top1": 0.4182,
+      "rank": 1,
+      "selected_for_deepseek": true
+    }
+  ],
+  "deepseek_replace": {
+    "candidate_documents": 20,
+    "chunk_budget": 600,
+    "cache_audit": {
+      "logical_calls_per_group": 55,
+      "external_calls_per_group": 55,
+      "degraded_calls": 0,
+      "scores_per_cache_row": 20
+    },
+    "results": [
+      {
+        "parameters": "384/64",
+        "recall_at_3": 0.8364,
+        "top1": 0.6
+      },
+      {
+        "parameters": "256/48",
+        "recall_at_3": 0.8364,
+        "top1": 0.5818
+      }
+    ],
+    "winner": "384/64"
+  }
+}

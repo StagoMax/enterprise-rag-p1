@@ -1,0 +1,25 @@
+{
+  "version": "p3-techqa-28481-nemotron-1024-structured-256-48-v1",
+  "backend": "nemotron",
+  "uri": "http://127.0.0.1:19530",
+  "documents": 28481,
+  "already_indexed_documents": 0,
+  "indexed_documents": 28481,
+  "indexed_chunks_total": 119467,
+  "chunks_written": 119467,
+  "parents_built": 32219,
+  "maximum_chunk_tokens": 256,
+  "maximum_parent_tokens": 1200,
+  "chunking": {
+    "strategy": "structured_parent_child",
+    "version": "structured-parent-child-256-48-v1",
+    "child_max_tokens": 256,
+    "child_overlap_tokens": 48,
+    "parent_max_tokens": 1200
+  },
+  "complete": true,
+  "published": true,
+  "chunk_seconds": 121.71,
+  "index_seconds": 12300.73,
+  "documents_per_second": 2.32
+}
