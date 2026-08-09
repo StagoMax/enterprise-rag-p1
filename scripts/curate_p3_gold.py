@@ -6,7 +6,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-CURATION_VERSION = "p3-gold-v2-2026-07-30"
+CURATION_VERSION = "p3-gold-v3-2026-08-09"
 
 # Decisions are deliberately explicit. The original source/question mapping is
 # retained on every changed row so the curation can be audited or reverted.
@@ -57,6 +57,24 @@ DECISIONS: dict[str, dict[str, Any]] = {
             "document was found in the corpus."
         ),
     },
+    "rag-033": {
+        "status": "verified",
+        "source_ids": ["swg21308281"],
+        "reason": (
+            "The question describes Installation Manager on a mounted Linux server; "
+            "the technote directly says not to install it on an NFS-mounted disk and "
+            "to install it only on a local disk."
+        ),
+    },
+    "rag-034": {
+        "status": "expanded",
+        "source_ids": ["swg21624731", "swg21608705"],
+        "reason": (
+            "Both technotes directly explain the three-second WLM/HA messaging-engine "
+            "lookup delay and prescribe tuning sib.trm.linger in sib.properties; either "
+            "document is evidence-equivalent for this question."
+        ),
+    },
     "rag-040": {
         "status": "excluded",
         "reason": (
@@ -101,6 +119,22 @@ DECISIONS: dict[str, dict[str, Any]] = {
             "the question asks about a blank/corrupted WCM syndicator 'Subscribe Now' "
             "popup. The corpus has a different syndicator error but no exact evidence "
             "for this symptom."
+        ),
+    },
+    "rag-056": {
+        "status": "corrected",
+        "source_ids": ["swg21397335"],
+        "answer": (
+            "For WebSphere Application Server V8 and later, use WASServiceHelper.bat "
+            "from the install_root\\bin directory to create the Windows service. It is "
+            "the product-shipped front end for WASService.exe; select the deployment "
+            "manager or application-server profile and supply the service settings."
+        ),
+        "reason": (
+            "The source is directly relevant and even shows a Deployment Manager service "
+            "example, but the original gold answer quoted the older downloadable "
+            "WASServiceCmd.exe steps. The BPM 8.5 question requires the V8-and-later "
+            "WASServiceHelper.bat instruction stated in the same technote."
         ),
     },
 }

@@ -1,6 +1,6 @@
 # P3 金标逐题复核报告
 
-- 复核版本：`p3-gold-v2-2026-07-30`
+- 复核版本：`p3-gold-v3-2026-08-09`
 - 基础检索金标：80
 - 基础检索纳入计分：75
 - 基础检索排除计分：5
@@ -13,10 +13,10 @@
 | 状态 | 数量 |
 |---|---:|
 | ambiguous | 1 |
-| corrected | 2 |
+| corrected | 3 |
 | excluded | 5 |
-| expanded | 1 |
-| verified | 71 |
+| expanded | 2 |
+| verified | 69 |
 
 ## 基础检索 80 道逐题记录
 
@@ -54,8 +54,8 @@
 | rag-030 | rag | 否 | excluded | `swg27050456` | The expected document is an OMEGAMON MQ Configuration Agent withdrawal notice and does not explain the KCIJPALO ABEND S013. No exact supporting document was found in the corpus. |
 | rag-031 | rag | 是 | verified | `swg21639375` | 题目、答案与来源正文一致，保留原标注。 |
 | rag-032 | rag | 是 | verified | `swg21163875` | 题目、答案与来源正文一致，保留原标注。 |
-| rag-033 | rag | 是 | verified | `swg21308281` | 题目、答案与来源正文一致，保留原标注。 |
-| rag-034 | rag | 是 | verified | `swg21624731` | 题目、答案与来源正文一致，保留原标注。 |
+| rag-033 | rag | 是 | verified | `swg21308281` | The question describes Installation Manager on a mounted Linux server; the technote directly says not to install it on an NFS-mounted disk and to install it only on a local disk. |
+| rag-034 | rag | 是 | expanded | `swg21624731, swg21608705` | Both technotes directly explain the three-second WLM/HA messaging-engine lookup delay and prescribe tuning sib.trm.linger in sib.properties; either document is evidence-equivalent for this question. |
 | rag-035 | rag | 是 | verified | `swg21426787` | 题目、答案与来源正文一致，保留原标注。 |
 | rag-036 | rag | 是 | verified | `swg21695094` | 题目、答案与来源正文一致，保留原标注。 |
 | rag-037 | rag | 是 | verified | `swg27023910` | 题目、答案与来源正文一致，保留原标注。 |
@@ -77,7 +77,7 @@
 | rag-053 | rag | 是 | verified | `swg21192604` | 题目、答案与来源正文一致，保留原标注。 |
 | rag-054 | rag | 否 | excluded | `swg21445801` | The expected document is a post-migration authoring-portlet issue, while the question asks about a blank/corrupted WCM syndicator 'Subscribe Now' popup. The corpus has a different syndicator error but no exact evidence for this symptom. |
 | rag-055 | rag | 是 | verified | `swg21701478` | 题目、答案与来源正文一致，保留原标注。 |
-| rag-056 | rag | 是 | verified | `swg21397335` | 题目、答案与来源正文一致，保留原标注。 |
+| rag-056 | rag | 是 | corrected | `swg21397335` | The source is directly relevant and even shows a Deployment Manager service example, but the original gold answer quoted the older downloadable WASServiceCmd.exe steps. The BPM 8.5 question requires the V8-and-later WASServiceHelper.bat instruction stated in the same technote. |
 | rag-057 | rag | 是 | verified | `swg21365841` | 题目、答案与来源正文一致，保留原标注。 |
 | rag-058 | rag | 是 | verified | `swg21269136` | 题目、答案与来源正文一致，保留原标注。 |
 | rag-059 | rag | 是 | verified | `swg24041563` | 题目、答案与来源正文一致，保留原标注。 |

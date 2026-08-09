@@ -103,6 +103,18 @@
 
 record 统计为 55 次逻辑调用、55 次外部 HTTP、零降级；replay 为 55 次调用、55 次 cache hit、0 次外部 HTTP。两份报告的 judgement digest 均为 `ca0c5e6bd9558170fb66c796a1a54c5dc74f6289408ca032b280d1b6bb578cda`。比较器已通过全部受控实验检查。replay 延迟不包含外部 API，不能与 replace 延迟直接比较。
 
+## 结构化父子分块复测
+
+真正的 `structured-parent-child-v1` 使用独立的 `enterprise_chunks_structured` Collection，共 82,228 个 384-token 子块和 32,219 个最大 1,200-token 父块。相同 DeepSeek `replace` 下，旧字符分块为 Recall@3 0.8364、Top-1 0.7273；结构化分块为 Recall@3 0.8000、Top-1 0.6545，分别少 2 题和 4 题。
+
+结构化分块的 Gold Top-20 覆盖从 51/55 提升到 52/55，但进入候选后未排进 Top-3 的题目从 5 增加到 8。当前父块只在最终 Top-3 排完后补取，DeepSeek 实际判断的仍是受字符预算限制的子块，因此新策略改善了召回池，却与现有重排输入不匹配。当前不应切换 alias；详细结果见 `reports/p3-structured-deepseek-evaluation.zh-CN.md`。
+
 ## 评测门槛说明
 
 当前 RAG 子集只有 55 题。即使 Top-1 达到 55/55，Wilson 95% 下界也约为 0.9347，仍低于 0.95 的置信下界门槛；至少需要约 73 道全部命中样本，才可能跨过该门槛。因此应同时报告点估计是否达标与置信区间检查，不能把 `report.passed=false` 简化解释为系统功能失败。
+
+## 父块重排兼容性修复
+
+结构化索引此前只在最终 Top-3 排定后补取父块，DeepSeek 实际看不到父块上下文。现已把父块补取前移到文档候选聚合之后、重排之前，并按 `parent_id` 去重读取；每个文档的重排输入仍限制为 680 字符，避免提示词体积失控。旧索引没有父块时保持原有子块回退路径。
+
+修复后 structured + DeepSeek `replace` 的 Recall@3 从 44/55 提升到 46/55，Top-1 从 36/55 变为 35/55；`weighted_rrf` 为 Recall@3 41/55、Top-1 31/55。这验证了父块进入重排能修复一部分候选内排序损失，但旧字符分块 + `replace` 仍以 40/55 的 Top-1 保持综合最优，所以暂不切换生产 alias。
