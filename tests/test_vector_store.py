@@ -55,6 +55,166 @@ def test_document_selection_keeps_highest_scoring_chunk_per_document():
     assert [item.chunk.document_id for item in selected] == ["document-a", "document-b"]
 
 
+def test_adaptive_recall_expands_until_it_has_requested_distinct_documents():
+    def hit(document_id: str, position: int) -> SearchHit:
+        chunk = Chunk(
+            chunk_id=f"{document_id}:1.0:{position}",
+            document_id=document_id,
+            title=document_id,
+            content="content",
+            position=position,
+            anchor=f"section:{position}",
+            allowed_roles=frozenset({"engineering"}),
+            version="1.0",
+            status=DocumentStatus.ACTIVE,
+            business_class="test",
+        )
+        return SearchHit(chunk=chunk, score=1.0, lexical_score=1.0, dense_score=1.0)
+
+    store = object.__new__(MilvusHybridStore)
+    store._active_version = "v1"
+    store._tenant_id = "demo"
+    store._reranker = None
+    store._search_multiplier = 1
+    store._adaptive_recall_enabled = True
+    store._adaptive_recall_max_chunks = 80
+    store._rerank_candidates = 20
+    store._field_names = lambda collection_name: set()
+    store._alias = "chunks"
+    store._recall_branches = lambda query: []
+    store._hydrate_parent_content = lambda hits: hits
+    limits: list[int] = []
+
+    def hybrid_hits(query, expression, limit, roles, tenant_id, *, branches=None):
+        limits.append(limit)
+        if limit == 20:
+            return [hit("same-document", position) for position in range(20)]
+        return [hit(f"document-{index}", 0) for index in range(20)]
+
+    store._hybrid_hits = hybrid_hits
+    hits = store.search(
+        "query",
+        frozenset({"engineering"}),
+        top_k=20,
+        min_score=0.0,
+    )
+
+    assert limits == [20, 40]
+    assert len(hits) == 20
+    assert len({item.chunk.document_id for item in hits}) == 20
+
+
+def test_reranker_uses_same_chunk_budget_as_direct_top20_retrieval():
+    def hit(index: int) -> SearchHit:
+        chunk = Chunk(
+            chunk_id=f"document-{index}:1.0:0",
+            document_id=f"document-{index}",
+            title=f"document-{index}",
+            content="content",
+            position=0,
+            anchor="section:0",
+            allowed_roles=frozenset({"engineering"}),
+            version="1.0",
+            status=DocumentStatus.ACTIVE,
+            business_class="test",
+        )
+        return SearchHit(chunk=chunk, score=1.0, lexical_score=1.0, dense_score=1.0)
+
+    class Reranker:
+        def __init__(self) -> None:
+            self.document_count = 0
+
+        def score(self, query, documents):
+            self.document_count = len(documents)
+            return [float(len(documents) - index) for index in range(len(documents))]
+
+    reranker = Reranker()
+    store = object.__new__(MilvusHybridStore)
+    store._active_version = "v1"
+    store._tenant_id = "demo"
+    store._reranker = reranker
+    store._search_multiplier = 30
+    store._adaptive_recall_enabled = True
+    store._adaptive_recall_max_chunks = 4096
+    store._rerank_candidates = 20
+    store._rerank_strategy = "replace"
+    store._reranker_weight = 0.5
+    store._rerank_rrf_k = 60
+    store._field_names = lambda collection_name: set()
+    store._alias = "chunks"
+    store._recall_branches = lambda query: []
+    store._hydrate_parent_content = lambda hits: hits
+    limits: list[int] = []
+
+    def hybrid_hits(query, expression, limit, roles, tenant_id, *, branches=None):
+        limits.append(limit)
+        return [hit(index) for index in range(20)]
+
+    store._hybrid_hits = hybrid_hits
+    results = store.search(
+        "query",
+        frozenset({"engineering"}),
+        top_k=3,
+        min_score=0.0,
+    )
+
+    assert limits == [600]
+    assert reranker.document_count == 20
+    assert len(results) == 3
+
+
+def test_parent_hydration_fetches_one_representative_per_parent():
+    parent_id = "doc:1.0:parent:0"
+    first = Chunk(
+        chunk_id="doc:1.0:0",
+        document_id="doc",
+        title="Document",
+        content="first child",
+        position=0,
+        anchor="section:1",
+        allowed_roles=frozenset({"engineering"}),
+        version="1.0",
+        status=DocumentStatus.ACTIVE,
+        business_class="test",
+        parent_id=parent_id,
+    )
+    second = first.model_copy(
+        update={"chunk_id": "doc:1.0:1", "content": "second child", "position": 1}
+    )
+
+    class ParentClient:
+        def __init__(self) -> None:
+            self.ids: list[str] = []
+
+        def get(self, collection_name, *, ids, output_fields):
+            self.ids = list(ids)
+            assert collection_name == "chunks"
+            assert output_fields == ["chunk_id", "parent_id", "parent_content"]
+            return [
+                {
+                    "chunk_id": ids[0],
+                    "parent_id": parent_id,
+                    "parent_content": "complete parent resolution",
+                }
+            ]
+
+    client = ParentClient()
+    store = object.__new__(MilvusHybridStore)
+    store._alias = "chunks"
+    store._client = client
+    store._field_names = lambda collection_name: {"parent_id", "parent_content"}
+
+    hydrated = store._hydrate_parent_content(
+        [
+            SearchHit(chunk=first, score=0.9, lexical_score=0.9, dense_score=0.9),
+            SearchHit(chunk=second, score=0.8, lexical_score=0.8, dense_score=0.8),
+        ]
+    )
+
+    assert client.ids == ["doc:1.0:0"]
+    assert all(hit.chunk.parent_content == "complete parent resolution" for hit in hydrated)
+
+
 def make_documents() -> list[DocumentInput]:
     documents = []
     # 让受限文档在词法上更强：标题和正文都塞满查询词，逼出越权泄漏。

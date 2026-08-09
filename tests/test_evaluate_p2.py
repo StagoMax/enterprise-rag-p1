@@ -63,6 +63,50 @@ def test_semantic_and_exact_search_metrics_are_reported_separately() -> None:
     }
 
 
+def test_candidate_funnel_separates_upstream_misses_and_ranking_misses() -> None:
+    traces = [
+        {
+            "id": "rescued",
+            "gold_in_candidates": True,
+            "candidates": [{"is_gold": True, "base_rank": 8}],
+        },
+        {
+            "id": "regressed",
+            "gold_in_candidates": True,
+            "candidates": [{"is_gold": True, "base_rank": 2}],
+        },
+        {
+            "id": "upstream-miss",
+            "gold_in_candidates": False,
+            "candidates": [{"is_gold": False, "base_rank": 1}],
+        },
+    ]
+    results = [
+        {"id": "rescued", "evidence_recalled": True, "top1_correct": False},
+        {"id": "regressed", "evidence_recalled": False, "top1_correct": False},
+        {"id": "upstream-miss", "evidence_recalled": False, "top1_correct": False},
+    ]
+
+    funnel = evaluate_p2._candidate_funnel(
+        traces,
+        results,
+        candidate_limit=20,
+        output_limit=3,
+        reranked=True,
+    )
+
+    assert funnel["candidate_recall"] == 0.6667
+    assert funnel["base_conditional_recall_at_3"] == 0.5
+    assert funnel["base_conditional_top1_accuracy"] == 0.0
+    assert funnel["conditional_recall_at_3"] == 0.5
+    assert funnel["conditional_top1_accuracy"] == 0.0
+    assert funnel["candidate_miss_ids"] == ["upstream-miss"]
+    assert funnel["candidate_hit_but_top3_miss_ids"] == ["regressed"]
+    assert funnel["rerank_rescue_ids"] == ["rescued"]
+    assert funnel["rerank_regression_ids"] == ["regressed"]
+    assert funnel["set_relationship_valid"] is True
+
+
 def test_quality_confidence_gate_uses_lower_bound_and_excludes_isolation() -> None:
     checks = evaluate_p2._confidence_checks(
         {
@@ -116,10 +160,13 @@ def test_report_records_effective_components_and_keeps_diagnostics_opt_in(
         "enabled": False,
         "limit": 20,
         "reranked": False,
+        "all_queries_full": None,
+        "minimum_unique_documents": None,
         "queries": [],
     }
     assert "semantic_rag_recall_at_3" in persisted["metrics"]
     assert "exact_search_recall_at_3" in persisted["metrics"]
+    assert persisted["retrieval_funnel"]["enabled"] is False
     assert persisted["results"] == []
 
 

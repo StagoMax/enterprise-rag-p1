@@ -187,6 +187,34 @@ def test_document_aggregation_includes_non_top_evidence_and_selects_it():
     assert candidates[0].evidence_hit.chunk.position == 1
 
 
+def test_document_aggregation_prefers_deduplicated_parent_context_for_reranking():
+    parent = (
+        "WebSphere resource limits background. The supported resolution is to set "
+        "nproc to 131072 before restarting the application server."
+    )
+    first = make_chunk(
+        "correct",
+        0,
+        "WebSphere resource limits background.",
+        title="WebSphere Linux limits",
+    ).model_copy(update={"parent_id": "correct:1.0:parent:0", "parent_content": parent})
+    second = make_chunk(
+        "correct",
+        1,
+        "Additional operating system notes.",
+        title="WebSphere Linux limits",
+    ).model_copy(update={"parent_id": "correct:1.0:parent:0", "parent_content": parent})
+
+    candidate = aggregate_document_candidates(
+        [make_hit(first, 0.9), make_hit(second, 0.8)],
+        "What nproc value should WebSphere use?",
+        document_limit=1,
+    )[0]
+
+    assert "nproc to 131072" in candidate.reranker_text
+    assert candidate.reranker_text.count("Passage ") == 1
+
+
 def test_in_memory_reranker_uses_document_context_and_returns_answer_chunk():
     reranker = RecordingReranker()
     store = InMemoryHybridStore(
