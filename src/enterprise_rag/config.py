@@ -101,6 +101,10 @@ class Settings(BaseSettings):
     # 候选池宽度 = top_k * 该值。精排在池内进行，池太窄会丢召回：
     # 1,000 文档实测 x4/x12/x30 对应 Top-1 0.575/0.613/0.650，p50 121/150/217 ms。
     milvus_search_multiplier: int = 12
+    # Optional experiment guard: expand the chunk-level recall pool until enough
+    # distinct documents are available for a document-level comparison/rerank.
+    milvus_adaptive_recall_enabled: bool = False
+    milvus_adaptive_recall_max_chunks: int = Field(default=4096, ge=1)
 
     # Product and evaluation contracts expose the three best distinct documents.
     top_k: int = 3

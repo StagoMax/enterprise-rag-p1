@@ -227,6 +227,9 @@ class MilvusHybridStore:
         rerank_strategy: str = "replace",
         reranker_weight: float = 0.5,
         rerank_rrf_k: int = 60,
+        adaptive_recall_enabled: bool = False,
+        adaptive_recall_max_chunks: int = 4096,
+        rerank_candidates: int = 20,
     ) -> None:
         if not 0 <= dense_weight <= 1:
             raise ValueError("dense_weight must be between 0 and 1")
@@ -242,6 +245,9 @@ class MilvusHybridStore:
         self._reranker = reranker
         self._alias = collection
         self._search_multiplier = max(search_multiplier, 1)
+        self._adaptive_recall_enabled = adaptive_recall_enabled
+        self._adaptive_recall_max_chunks = max(adaptive_recall_max_chunks, 1)
+        self._rerank_candidates = max(rerank_candidates, 1)
         self._tenant_id = tenant_id
         self._query_rewrite_enabled = query_rewrite_enabled
         self._fielded_search_enabled = fielded_search_enabled
@@ -691,20 +697,38 @@ class MilvusHybridStore:
     def _hydrate_parent_content(self, hits: list[SearchHit]) -> list[SearchHit]:
         if not hits or "parent_content" not in self._field_names(self._alias):
             return hits
+        pending = [
+            hit
+            for hit in hits
+            if hit.chunk.parent_id and not hit.chunk.parent_content
+        ]
+        if not pending:
+            return hits
+        representative_by_parent: dict[str, str] = {}
+        for hit in pending:
+            parent_id = hit.chunk.parent_id
+            if parent_id is not None:
+                representative_by_parent.setdefault(parent_id, hit.chunk.chunk_id)
         rows = self._client.get(
             self._alias,
-            ids=[hit.chunk.chunk_id for hit in hits],
-            output_fields=["chunk_id", "parent_content"],
+            ids=list(representative_by_parent.values()),
+            output_fields=["chunk_id", "parent_id", "parent_content"],
         )
         parents = {
-            str(row["chunk_id"]): str(row.get("parent_content") or "")
+            str(row.get("parent_id") or ""): str(row.get("parent_content") or "")
             for row in rows
+            if row.get("parent_id")
         }
         return [
             hit.model_copy(
                 update={
                     "chunk": hit.chunk.model_copy(
-                        update={"parent_content": parents.get(hit.chunk.chunk_id) or None}
+                        update={
+                            "parent_content": (
+                                parents.get(hit.chunk.parent_id or "")
+                                or hit.chunk.parent_content
+                            )
+                        }
                     )
                 }
             )
@@ -883,28 +907,72 @@ class MilvusHybridStore:
             ids = ", ".join(f'"{doc}"' for doc in sorted(validated_candidate_ids))
             expression = f"{expression} and document_id in [{ids}]"
 
+        document_target = top_k
         limit = max(top_k * self._search_multiplier, top_k)
         if self._reranker is not None and not exact:
-            rerank_document_limit = max(top_k * 4, 20)
-            limit = max(limit, rerank_document_limit * RERANK_CHUNKS_PER_DOCUMENT)
-        hits = (
-            self._exact_hits(query, expression, limit, roles, requested_tenant)
-            if exact
-            else self._hybrid_hits(query, expression, limit, roles, requested_tenant)
-        )
-        if validated_candidate_ids is not None:
-            hits = [
-                hit
-                for hit in hits
-                if hit.chunk.document_id in validated_candidate_ids
-            ]
-        hits = [hit for hit in hits if hit.score >= min_score]
+            rerank_document_limit = max(top_k * 4, self._rerank_candidates)
+            document_target = max(document_target, rerank_document_limit)
+            # Use the same chunk-level recall budget as a direct Top-N document
+            # retrieval. Otherwise a Top-3 response would rerank 20 documents
+            # recalled from only ``3 * multiplier`` chunks, while Recall@20 is
+            # measured from ``20 * multiplier`` chunks.
+            limit = max(
+                limit,
+                rerank_document_limit * self._search_multiplier,
+                rerank_document_limit * RERANK_CHUNKS_PER_DOCUMENT,
+            )
+
+        recall_branches = None if exact else self._recall_branches(query)
+        maximum_limit = max(limit, self._adaptive_recall_max_chunks)
+        while True:
+            hits = (
+                self._exact_hits(query, expression, limit, roles, requested_tenant)
+                if exact
+                else self._hybrid_hits(
+                    query,
+                    expression,
+                    limit,
+                    roles,
+                    requested_tenant,
+                    branches=recall_branches,
+                )
+            )
+            if validated_candidate_ids is not None:
+                hits = [
+                    hit
+                    for hit in hits
+                    if hit.chunk.document_id in validated_candidate_ids
+                ]
+            hits = [hit for hit in hits if hit.score >= min_score]
+            distinct_documents = len({hit.chunk.document_id for hit in hits})
+            if (
+                exact
+                or not self._adaptive_recall_enabled
+                or distinct_documents >= document_target
+            ):
+                break
+            if limit >= maximum_limit:
+                raise RuntimeError(
+                    "adaptive recall could not produce the required distinct documents: "
+                    f"required={document_target}, available={distinct_documents}, "
+                    f"chunk_limit={limit}"
+                )
+            limit = min(limit * 2, maximum_limit)
 
         if self._reranker is not None and not exact and hits:
+            candidate_limit = max(top_k * 4, self._rerank_candidates)
             candidates = aggregate_document_candidates(
                 hits,
                 query,
-                max(top_k * 4, 20),
+                candidate_limit,
+            )
+            hydrated_candidate_hits = self._hydrate_parent_content(
+                [hit for candidate in candidates for hit in candidate.hits]
+            )
+            candidates = aggregate_document_candidates(
+                hydrated_candidate_hits,
+                query,
+                candidate_limit,
             )
             scores = self._reranker.score(
                 query,
@@ -1017,8 +1085,10 @@ class MilvusHybridStore:
         limit: int,
         roles: frozenset[str],
         tenant_id: str,
+        *,
+        branches: Sequence[_RecallBranch] | None = None,
     ) -> list[SearchHit]:
-        branches = self._recall_branches(query)
+        branches = list(branches) if branches is not None else self._recall_branches(query)
         if self._search_mode == "native_rrf":
             return self._native_hybrid_hits(
                 query,

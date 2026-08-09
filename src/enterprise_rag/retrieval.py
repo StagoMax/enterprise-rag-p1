@@ -315,12 +315,29 @@ def _reranker_document_text(query: str, hits: list[SearchHit]) -> str:
         f"Title: {first.title[:160]}\n"
         f"Version: {first.version[:32]}; Type: {first.business_class[:48]}\n"
     )
-    labels_length = sum(len(f"Passage {index + 1}: \n") for index in range(len(hits)))
+    sources: list[str] = []
+    seen_sources: set[tuple[str, str]] = set()
+    for hit in hits:
+        parent_content = hit.chunk.parent_content
+        if parent_content:
+            source_key = ("parent", hit.chunk.parent_id or parent_content)
+            source = parent_content
+        else:
+            source_key = ("chunk", hit.chunk.chunk_id)
+            source = hit.chunk.content
+        if source_key in seen_sources:
+            continue
+        seen_sources.add(source_key)
+        sources.append(source)
+
+    labels_length = sum(
+        len(f"Passage {index + 1}: \n") for index in range(len(sources))
+    )
     available = max(RERANK_DOCUMENT_CHARACTER_LIMIT - len(header) - labels_length, 180)
-    per_chunk = max(60, available // len(hits))
+    per_source = max(60, available // len(sources))
     passages = [
-        f"Passage {index + 1}: {_query_excerpt(query, hit.chunk.content, per_chunk)}"
-        for index, hit in enumerate(hits)
+        f"Passage {index + 1}: {_query_excerpt(query, source, per_source)}"
+        for index, source in enumerate(sources)
     ]
     return (header + "\n".join(passages))[:RERANK_DOCUMENT_CHARACTER_LIMIT]
 
