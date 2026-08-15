@@ -20,6 +20,39 @@ def test_workbench_and_health_are_available(client: TestClient) -> None:
     assert health.json()["index_version"] == "test-bootstrap-v1"
 
 
+def test_source_catalog_is_acl_filtered_searchable_and_paginated(
+    client: TestClient,
+) -> None:
+    response = client.get(
+        "/v1/knowledge/sources",
+        params={"query": "VPN", "offset": 0, "limit": 1},
+        headers=auth_header(client, "engineering"),
+    )
+
+    assert response.status_code == 200
+    page = response.json()
+    assert page["index_total"] == 3
+    assert page["authorized_total"] == 2
+    assert page["total"] == 1
+    assert page["offset"] == 0
+    assert page["limit"] == 1
+    assert page["has_more"] is False
+    assert [item["document_id"] for item in page["items"]] == ["vpn-access-guide"]
+
+
+def test_source_catalog_does_not_expose_unauthorized_metadata(client: TestClient) -> None:
+    response = client.get(
+        "/v1/knowledge/sources",
+        params={"query": "薪酬"},
+        headers=auth_header(client, "engineering"),
+    )
+
+    assert response.status_code == 200
+    page = response.json()
+    assert page["total"] == 0
+    assert page["items"] == []
+
+
 def test_query_requires_signed_identity(client: TestClient) -> None:
     response = client.post("/v1/query", json={"question": "VPN 如何接入？"})
     assert response.status_code == 401
@@ -98,6 +131,29 @@ def test_rag_returns_authorized_evidence_and_citation(client: TestClient) -> Non
     assert "corp-shanghai VPN" in body["answer"]
     assert body["citations"][0]["source_id"] == "vpn-access-guide"
     assert body["trace_id"]
+
+
+def test_context_pack_is_review_only_and_budgeted(client: TestClient) -> None:
+    response = client.post(
+        "/v1/context-packs",
+        headers=auth_header(client, "engineering"),
+        json={
+            "query": "Orion 员工如何访问生产只读控制台？",
+            "retrieval_mode": "hybrid",
+            "top_k": 5,
+            "maximum_tokens": 256,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["pack"]["status"] == "draft"
+    assert body["pack"]["retrieval_engine"] == "graph_rag"
+    assert body["pack"]["estimated_tokens"] <= 256
+    assert body["pack"]["items"][0]["document_id"] == "vpn-access-guide"
+    assert "answer" not in body
+    assert body["diagnostics"]["agent_loop_integration"] is False
+    assert body["diagnostics"]["prompt_injection"] is False
 
 
 def test_exact_error_code_uses_exact_search(client: TestClient) -> None:
@@ -196,6 +252,45 @@ def test_ingestion_requires_admin_and_inherits_acl(client: TestClient) -> None:
     assert all(
         citation["source_id"] != "expense-policy"
         for citation in engineering_result["citations"]
+    )
+
+
+def test_uploaded_document_is_incrementally_indexed(client: TestClient) -> None:
+    denied = client.post(
+        "/v1/documents/upload",
+        headers=auth_header(client, "engineering"),
+        files={"file": ("publishing.txt", "所有平台统一使用同一发布格式。", "text/plain")},
+    )
+    assert denied.status_code == 403
+
+    indexed = client.post(
+        "/v1/documents/upload",
+        headers=auth_header(client, "knowledge_admin"),
+        files={"file": ("publishing.txt", "所有平台统一使用同一发布格式。", "text/plain")},
+        data={
+            "source_key": "publishing-guideline",
+            "namespace": "enterprise_knowledge",
+            "title": "多平台发布规范",
+            "metadata_json": '{"allowed_roles":["engineering"],"version":"2.0"}',
+        },
+    )
+
+    assert indexed.status_code == 201
+    body = indexed.json()
+    assert body["status"] == "indexed"
+    assert body["document_id"] == "publishing-guideline"
+    assert body["chunk_count"] == 1
+    assert body["content_hash"]
+
+    retrieved = client.post(
+        "/v1/context-packs",
+        headers=auth_header(client, "engineering"),
+        json={"query": "多平台应该使用什么发布格式？", "retrieval_mode": "hybrid"},
+    )
+    assert retrieved.status_code == 200
+    assert any(
+        item["document_id"] == "publishing-guideline"
+        for item in retrieved.json()["pack"]["items"]
     )
 
 

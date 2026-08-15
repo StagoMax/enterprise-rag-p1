@@ -3,6 +3,25 @@ from pydantic import SecretStr
 from enterprise_rag.config import Settings
 
 
+def test_default_runtime_mounts_the_full_p3_index(monkeypatch) -> None:
+    for name in (
+        "RAG_VECTOR_BACKEND",
+        "RAG_INDEX_VERSION",
+        "RAG_CORPUS_PATH",
+        "RAG_RELATIONS_PATH",
+        "RAG_GRAPH_STATE_PATH",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+    settings = Settings(_env_file=None)
+
+    assert settings.vector_backend == "milvus"
+    assert settings.index_version == "p3-techqa-28481-v1"
+    assert settings.corpus_path.as_posix().endswith("techqa_p3/documents.jsonl")
+    assert settings.relations_path.as_posix().endswith("techqa_p3/relations.jsonl")
+    assert settings.graph_state_path.name == "p3-milvus-graph-state.json"
+
+
 def test_deepseek_aliases_are_used_before_nowcoding_and_legacy_opentopia(monkeypatch):
     monkeypatch.setenv("DEEPSEEK_BASE_URL", "https://deepseek.test/v1")
     monkeypatch.setenv("DEEPSEEKMODEL", "deepseek-model")
