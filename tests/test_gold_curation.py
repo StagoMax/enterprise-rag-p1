@@ -55,3 +55,22 @@ def test_curate_corrects_rag_056_for_was_v8_and_later() -> None:
     assert curated[0]["expected_source_ids"] == ["swg21397335"]
     assert "WASServiceHelper.bat" in str(curated[0]["expected_answer"])
     assert curated[0]["original_expected_answer"] == "original answer"
+
+
+def test_curate_preserves_expansion_review_status() -> None:
+    row = gold_row("rag-061")
+    row.update(
+        {
+            "gold_expansion_version": "test-expansion",
+            "expansion_review_status": "corrected",
+            "expansion_review_notes": "Corrected during expansion audit.",
+        }
+    )
+
+    curated = curate([row], {"original-doc"})
+
+    assert curated[0]["gold_review_status"] == "corrected"
+    assert curated[0]["gold_review_notes"] == "Corrected during expansion audit."
+    assert curated[0]["gold_review_basis"] == (
+        "expansion_audit_question_answer_source_checked"
+    )

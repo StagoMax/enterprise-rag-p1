@@ -6,7 +6,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-CURATION_VERSION = "p3-gold-v3-2026-08-09"
+CURATION_VERSION = "p3-gold-v4-2026-08-09"
 
 # Decisions are deliberately explicit. The original source/question mapping is
 # retained on every changed row so the curation can be audited or reverted.
@@ -165,8 +165,12 @@ def curate(rows: list[dict[str, Any]], document_ids: set[str]) -> list[dict[str,
         decision = DECISIONS.get(row_id)
         row["gold_revision"] = CURATION_VERSION
         row["score_enabled"] = True
-        row["gold_review_status"] = "verified"
-        if row["category"] in {"rag", "exact_search"}:
+        row["gold_review_status"] = row.get("expansion_review_status", "verified")
+        if row.get("expansion_review_notes"):
+            row["gold_review_notes"] = row["expansion_review_notes"]
+        if row.get("gold_expansion_version"):
+            row["gold_review_basis"] = "expansion_audit_question_answer_source_checked"
+        elif row["category"] in {"rag", "exact_search"}:
             row["gold_review_basis"] = (
                 "source_document_exists_active_authorized_and_question_answer_checked"
             )
@@ -261,7 +265,7 @@ def write_report(rows: list[dict[str, Any]], output: Path) -> None:
     lines.extend(
         [
             "",
-            "## 基础检索 80 道逐题记录",
+            f"## 基础检索 {report['base_rows_total']} 道逐题记录",
             "",
             "| ID | 类别 | 计分 | 状态 | 期望文档 | 复核备注 |",
             "|---|---|---:|---|---|---|",

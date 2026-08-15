@@ -144,6 +144,58 @@ def test_evaluate_rejects_an_empty_category_scope(tmp_path: Path) -> None:
         raise AssertionError("empty category scope should fail")
 
 
+def test_evaluate_rejects_an_empty_question_id_scope(tmp_path: Path) -> None:
+    try:
+        evaluate_p2.evaluate(settings_for(tmp_path), question_ids=frozenset())
+    except ValueError as exc:
+        assert str(exc) == "question_ids must not be empty"
+    else:
+        raise AssertionError("empty question ID scope should fail")
+
+
+def test_evaluate_rejects_an_invalid_retrieval_mode_override(tmp_path: Path) -> None:
+    try:
+        evaluate_p2.evaluate(settings_for(tmp_path), retrieval_mode_override="invalid")
+    except ValueError as exc:
+        assert str(exc) == "retrieval_mode_override must be auto, hybrid, or graph"
+    else:
+        raise AssertionError("invalid retrieval mode override should fail")
+
+
+def test_evaluate_filters_question_ids_and_records_forced_graph_mode(tmp_path: Path) -> None:
+    settings = settings_for(tmp_path)
+    rows = [
+        {
+            "id": row_id,
+            "category": "rag",
+            "question": f"How should document {row_id} be configured?",
+            "expected_route": "rag",
+            "roles": ["engineering"],
+            "expected_source_ids": [],
+            "expected_answer": "",
+            "should_refuse": True,
+            "score_enabled": True,
+        }
+        for row_id in ("selected", "not-selected")
+    ]
+    settings.gold_path.write_text(
+        "\n".join(json.dumps(row) for row in rows) + "\n",
+        encoding="utf-8",
+    )
+
+    report = evaluate_p2.evaluate(
+        settings,
+        categories=frozenset({"rag"}),
+        question_ids=frozenset({"selected"}),
+        retrieval_mode_override="graph",
+    )
+
+    assert report["questions"] == 1
+    assert report["selected_question_ids"] == ["selected"]
+    assert report["retrieval_mode_override"] == "graph"
+    assert [row["id"] for row in report["results"]] == ["selected"]
+
+
 def test_report_records_effective_components_and_keeps_diagnostics_opt_in(
     tmp_path: Path,
 ) -> None:

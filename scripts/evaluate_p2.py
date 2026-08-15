@@ -405,6 +405,8 @@ def evaluate(
     candidate_diagnostics: bool = False,
     candidate_limit: int = 20,
     categories: frozenset[str] | None = None,
+    question_ids: frozenset[str] | None = None,
+    retrieval_mode_override: str | None = None,
 ) -> dict[str, Any]:
     if candidate_limit < 1:
         raise ValueError("candidate_limit must be positive")
@@ -418,9 +420,22 @@ def evaluate(
             raise ValueError(f"unknown evaluation categories: {unknown}")
         if not categories:
             raise ValueError("categories must not be empty")
+    if question_ids is not None and not question_ids:
+        raise ValueError("question_ids must not be empty")
+    if retrieval_mode_override not in {None, "auto", "hybrid", "graph"}:
+        raise ValueError("retrieval_mode_override must be auto, hybrid, or graph")
     all_gold = load_gold_questions(settings.gold_path)
     eligible_gold = [row for row in all_gold if row.get("score_enabled", True)]
     gold = [row for row in eligible_gold if categories is None or row["category"] in categories]
+    if question_ids is not None:
+        available_ids = {str(row["id"]) for row in gold}
+        missing_ids = sorted(question_ids - available_ids)
+        if missing_ids:
+            raise ValueError(
+                "selected question IDs are missing from the scored category scope: "
+                + ", ".join(missing_ids)
+            )
+        gold = [row for row in gold if str(row["id"]) in question_ids]
     excluded_gold = [row for row in all_gold if not row.get("score_enabled", True)]
     if categories is not None and not gold:
         raise ValueError("no scored gold rows match the selected categories")
@@ -437,7 +452,11 @@ def evaluate(
         response = service.query(
             QueryRequest(
                 question=str(row["question"]),
-                retrieval_mode=str(row.get("retrieval_mode", "auto")),
+                retrieval_mode=(
+                    retrieval_mode_override
+                    if retrieval_mode_override is not None
+                    else str(row.get("retrieval_mode", "auto"))
+                ),
             ),
             principal,
         )
@@ -750,6 +769,13 @@ def evaluate(
         "questions": len(results),
         "questions_total": len(all_gold),
         "questions_eligible": len(eligible_gold),
+        "selected_question_ids": [str(row["id"]) for row in gold],
+        "retrieval_mode_override": retrieval_mode_override,
+        "graph_used_count": sum(bool(row["graph_used"]) for row in results),
+        "graph_used_rate": round(
+            sum(bool(row["graph_used"]) for row in results) / max(len(results), 1),
+            4,
+        ),
         "evaluation_categories": sorted(evaluated_categories),
         "questions_excluded": len(excluded_gold),
         "excluded_gold_ids": [row["id"] for row in excluded_gold],
@@ -1024,6 +1050,16 @@ def main() -> None:
         help="Evaluate only this category; repeat to select multiple categories.",
     )
     parser.add_argument(
+        "--question-ids-from-report",
+        type=Path,
+        help="Evaluate exactly the result IDs stored in an earlier JSON report.",
+    )
+    parser.add_argument(
+        "--force-retrieval-mode",
+        choices=["auto", "hybrid", "graph"],
+        help="Override each selected gold row's retrieval_mode for a controlled comparison.",
+    )
+    parser.add_argument(
         "--data",
         type=Path,
         default=Path("data/processed/techqa_p2"),
@@ -1048,6 +1084,19 @@ def main() -> None:
         parser.error("--hybrid-rrf-k must be positive")
     if args.adaptive_recall_max_chunks is not None and args.adaptive_recall_max_chunks < 1:
         parser.error("--adaptive-recall-max-chunks must be positive")
+
+    question_ids: frozenset[str] | None = None
+    if args.question_ids_from_report is not None:
+        try:
+            source_report = json.loads(
+                args.question_ids_from_report.read_text(encoding="utf-8")
+            )
+            source_results = source_report["results"]
+            question_ids = frozenset(str(row["id"]) for row in source_results)
+        except (OSError, KeyError, TypeError, json.JSONDecodeError) as error:
+            parser.error(f"invalid --question-ids-from-report: {error}")
+        if not question_ids:
+            parser.error("--question-ids-from-report contains no result IDs")
 
     base_settings = Settings()
     embedding_backend = args.backend or base_settings.embedding_backend
@@ -1155,6 +1204,8 @@ def main() -> None:
         candidate_diagnostics=args.candidate_diagnostics,
         candidate_limit=args.candidate_limit,
         categories=frozenset(args.category) if args.category else None,
+        question_ids=question_ids,
+        retrieval_mode_override=args.force_retrieval_mode,
     )
     output = args.output or Path(f"reports/p2-baseline-{embedding_backend}.json")
     write_report(report, output)

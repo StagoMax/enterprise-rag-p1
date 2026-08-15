@@ -1,24 +1,24 @@
 {
-  "curation_version": "p3-gold-v3-2026-08-09",
-  "rows_total": 180,
-  "rows_scored": 175,
+  "curation_version": "p3-gold-v4-2026-08-09",
+  "rows_total": 240,
+  "rows_scored": 235,
   "rows_excluded": 5,
   "status_counts": {
     "ambiguous": 1,
-    "corrected": 3,
+    "corrected": 4,
     "excluded": 5,
     "expanded": 2,
-    "verified": 169
+    "verified": 228
   },
-  "base_rows_total": 80,
-  "base_rows_scored": 75,
+  "base_rows_total": 140,
+  "base_rows_scored": 135,
   "base_rows_excluded": 5,
   "base_status_counts": {
     "ambiguous": 1,
-    "corrected": 3,
+    "corrected": 4,
     "excluded": 5,
     "expanded": 2,
-    "verified": 69
+    "verified": 128
   },
   "changed_rows": [
     "rag-005",
@@ -736,6 +736,666 @@
       "source_question_id": "TRAIN_Q217",
       "expected_source_ids": [
         "swg21255545"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-061",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q000",
+      "expected_source_ids": [
+        "swg21996508"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-062",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q001",
+      "expected_source_ids": [
+        "swg21675316"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-063",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "DEV_Q008",
+      "expected_source_ids": [
+        "swg21412061"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-064",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q009",
+      "expected_source_ids": [
+        "swg21696083"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-065",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "DEV_Q021",
+      "expected_source_ids": [
+        "swg21298897"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-066",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q033",
+      "expected_source_ids": [
+        "swg21591076"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-067",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "DEV_Q034",
+      "expected_source_ids": [
+        "swg21413628"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-068",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q037",
+      "expected_source_ids": [
+        "swg21576245"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-069",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "DEV_Q038",
+      "expected_source_ids": [
+        "swg21451229"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-070",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q042",
+      "expected_source_ids": [
+        "swg21664629"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-071",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q091",
+      "expected_source_ids": [
+        "swg21648986"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-072",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "DEV_Q102",
+      "expected_source_ids": [
+        "swg21965783"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-073",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "DEV_Q140",
+      "expected_source_ids": [
+        "swg21979066"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-074",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q152",
+      "expected_source_ids": [
+        "swg21978641"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-075",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q172",
+      "expected_source_ids": [
+        "swg21998312"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-076",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q195",
+      "expected_source_ids": [
+        "swg27046676"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-077",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "DEV_Q195",
+      "expected_source_ids": [
+        "swg21959224"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-078",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q208",
+      "expected_source_ids": [
+        "swg21568844"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-079",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q227",
+      "expected_source_ids": [
+        "swg21577138"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-080",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "DEV_Q234",
+      "expected_source_ids": [
+        "swg21666489"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-081",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q235",
+      "expected_source_ids": [
+        "swg21959714"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-082",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "DEV_Q245",
+      "expected_source_ids": [
+        "swg21988389"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-083",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q250",
+      "expected_source_ids": [
+        "swg21664126"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-084",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "corrected",
+      "source_question_id": "DEV_Q254",
+      "expected_source_ids": [
+        "swg21980860"
+      ],
+      "notes": "The raw answer was a malformed cause fragment. The corrected gold answer uses the direct instruction in RESOLVING THE PROBLEM."
+    },
+    {
+      "id": "rag-085",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q259",
+      "expected_source_ids": [
+        "swg21220832"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-086",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "DEV_Q275",
+      "expected_source_ids": [
+        "swg21417266"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-087",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "DEV_Q296",
+      "expected_source_ids": [
+        "swg21663414"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-088",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "DEV_Q299",
+      "expected_source_ids": [
+        "swg21500040"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-089",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "DEV_Q305",
+      "expected_source_ids": [
+        "swg21656263"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-090",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "DEV_Q306",
+      "expected_source_ids": [
+        "swg21642839"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-091",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q310",
+      "expected_source_ids": [
+        "swg21380213"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-092",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q314",
+      "expected_source_ids": [
+        "swg21687172"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-093",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q330",
+      "expected_source_ids": [
+        "swg21674924"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-094",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q334",
+      "expected_source_ids": [
+        "swg21572905"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-095",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q339",
+      "expected_source_ids": [
+        "swg21974757"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-096",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q350",
+      "expected_source_ids": [
+        "swg27044407"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-097",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q388",
+      "expected_source_ids": [
+        "swg21417765"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-098",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q415",
+      "expected_source_ids": [
+        "swg21501900"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-099",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q421",
+      "expected_source_ids": [
+        "swg21592093"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-100",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q439",
+      "expected_source_ids": [
+        "swg21982008"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-101",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q450",
+      "expected_source_ids": [
+        "swg21662193"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-102",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q458",
+      "expected_source_ids": [
+        "swg21691034"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-103",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q501",
+      "expected_source_ids": [
+        "swg21655808"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-104",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q512",
+      "expected_source_ids": [
+        "swg21651101"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-105",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q523",
+      "expected_source_ids": [
+        "swg21971127"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-106",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q535",
+      "expected_source_ids": [
+        "swg21690184"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-107",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q540",
+      "expected_source_ids": [
+        "swg27049061"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-108",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q552",
+      "expected_source_ids": [
+        "swg21395327"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-109",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q587",
+      "expected_source_ids": [
+        "swg21688071"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-110",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q013",
+      "expected_source_ids": [
+        "swg21618719"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-111",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q098",
+      "expected_source_ids": [
+        "swg21902654"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-112",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q189",
+      "expected_source_ids": [
+        "swg21967756"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-113",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "DEV_Q155",
+      "expected_source_ids": [
+        "swg21445430"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-114",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "DEV_Q216",
+      "expected_source_ids": [
+        "swg21480262"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-115",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q226",
+      "expected_source_ids": [
+        "swg21690163"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-116",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q466",
+      "expected_source_ids": [
+        "swg21244655"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-117",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q467",
+      "expected_source_ids": [
+        "swg21442694"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-118",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "DEV_Q302",
+      "expected_source_ids": [
+        "swg21412061"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-119",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q070",
+      "expected_source_ids": [
+        "swg21982451"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rag-120",
+      "category": "rag",
+      "score_enabled": true,
+      "status": "verified",
+      "source_question_id": "TRAIN_Q219",
+      "expected_source_ids": [
+        "swg21529563"
       ],
       "notes": ""
     },
