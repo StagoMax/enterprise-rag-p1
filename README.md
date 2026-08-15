@@ -25,14 +25,14 @@
 | NVIDIA TechQA-RAG-Eval | 28,481 篇 | 全量公开代理技术知识，进入 Hybrid/Graph RAG |
 | 文档分块 | 147,358 | Nemotron 1024 维稠密向量 + Milvus BM25 |
 | 显式文档引用 | 7,600 条 | 只从正文中的 `swg...` 引用生成 |
-| P3 金标 | 180 题 | 普通检索、精确检索、工具、Graph、越权和无证据 |
+| P3 金标 | 240 题（235 题计分） | 普通检索、精确检索、工具、Graph、越权和无证据 |
 | BIRD-SQL `financial` | 8 表、32 题 | 只通过只读 SQL 工具访问，不进入向量库 |
 
 通用常识、公开百科、邮件/即时通信原始流、实时状态和结构化业务明细仍不进入 RAG。数据来源和许可证见 [DATASET_LICENSES.md](data/DATASET_LICENSES.md)。
 
 ## 当前 P3 基线
 
-正式配置：Milvus Standalone、索引 `p3-techqa-28481-nemotron-1024-v3`、Nemotron 1024 维、稠密权重 0.70、候选扩展倍数 30、严格 Top-3 不同文档、无重排器、摘录式回答。
+正式配置：Milvus Standalone、索引 `p3-techqa-28481-nemotron-1024-v3`、Nemotron 1024 维、稠密权重 0.70、候选扩展倍数 30、严格 Top-3 不同文档、无重排器、摘录式回答。下表是扩充前 180 题的历史基线；240 题新金标需要在检索策略修改完成后重新评测。
 
 | 指标 | 结果 | 95% CI | 门槛 |
 |---|---:|:--:|---:|
@@ -58,6 +58,8 @@ P3 整体仍未通过发布门槛。主要阻断项是普通语义检索扩展�
 .venv\Scripts\python.exe scripts\prepare_p2_data.py `
   --output data\processed\techqa_p3 `
   --documents 28481
+.venv\Scripts\python.exe scripts\expand_p3_gold.py
+.venv\Scripts\python.exe scripts\curate_p3_gold.py
 ```
 
 ## 启动 Milvus 和建立索引
@@ -162,3 +164,6 @@ scripts\run_p3_nemotron_server.cmd
 - [P2 执行与验收报告](docs/05-P2执行与验收报告.md)
 - [端到端实现原理与教学](docs/06-端到端实现原理与教学.md)
 - [P3 执行与验收报告](docs/07-P3执行与验收报告.md)
+- [SAG 记忆基础设施设计与运行](docs/08-SAG记忆基础设施设计与运行.md)
+- [时序记忆账本与离线巩固](docs/09-时序记忆账本与离线巩固.md)
+- [资料接入与增量索引](docs/10-资料接入与增量索引.md)
