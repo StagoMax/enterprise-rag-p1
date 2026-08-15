@@ -3,17 +3,24 @@ from uuid import uuid4
 
 from enterprise_rag.answering import EvidenceAnswerGenerator, format_tool_answer
 from enterprise_rag.audit import JsonlAuditStore
-from enterprise_rag.chunking import build_document, chunk_document
+from enterprise_rag.chunking import build_document, chunk_document, count_tokens, token_spans
 from enterprise_rag.config import Settings
 from enterprise_rag.graph import VersionedKnowledgeGraph
 from enterprise_rag.graph_retrieval import GraphRagRetriever
 from enterprise_rag.models import (
     AuditEvent,
     Citation,
+    ContextPackDiagnostics,
+    ContextPackItem,
+    ContextPackRequest,
+    ContextPackResponse,
     DocumentInput,
+    DraftContextPack,
     GraphEdge,
     IndexPublishRequest,
     IndexSnapshotInfo,
+    KnowledgeSource,
+    KnowledgeSourcePage,
     Principal,
     QueryRequest,
     QueryResponse,
@@ -185,6 +192,88 @@ class EnterpriseRagService:
         with self._index_lock:
             return self._query_locked(request, principal)
 
+    def build_context_pack(
+        self,
+        request: ContextPackRequest,
+        principal: Principal,
+    ) -> ContextPackResponse:
+        """Retrieve a reviewable draft without calling the answer generator or Agent Loop."""
+
+        with self._index_lock:
+            decision = self._router.route(request.query)
+            exact = decision.route == Route.EXACT_SEARCH
+            use_graph = self._settings.graph_enabled and (
+                request.retrieval_mode == "graph"
+                or (request.retrieval_mode == "auto" and decision.graph_expansion)
+            )
+            retrieval = self._retriever.search(
+                request.query,
+                principal.roles,
+                top_k=request.top_k,
+                exact=exact,
+                min_score=self._settings.min_retrieval_score,
+                use_graph=use_graph,
+                tenant_id=principal.tenant_id,
+            )
+
+            remaining_tokens = request.maximum_tokens
+            items: list[ContextPackItem] = []
+            for hit in retrieval.hits:
+                if remaining_tokens <= 0:
+                    break
+                content, estimated_tokens = _bounded_context_text(
+                    hit.chunk.content,
+                    remaining_tokens,
+                )
+                if not content:
+                    continue
+                items.append(
+                    ContextPackItem(
+                        item_id=f"{hit.chunk.chunk_id}:{len(items)}",
+                        chunk_id=hit.chunk.chunk_id,
+                        document_id=hit.chunk.document_id,
+                        title=hit.chunk.title,
+                        content=content,
+                        anchor=hit.chunk.anchor,
+                        section_title=hit.chunk.section_title,
+                        score=hit.score,
+                        lexical_score=hit.lexical_score,
+                        dense_score=hit.dense_score,
+                        retrieval_mode=hit.retrieval_mode,
+                        graph_path=hit.graph_path,
+                        graph_relations=hit.graph_relations,
+                        selection_reason=(
+                            "由图关系路径从高相关种子文档扩展命中"
+                            if hit.retrieval_mode == "graph"
+                            else "由关键词与向量混合召回命中"
+                        ),
+                        estimated_tokens=estimated_tokens,
+                    )
+                )
+                remaining_tokens -= estimated_tokens
+
+            used_tokens = request.maximum_tokens - remaining_tokens
+            pack = DraftContextPack(
+                pack_id=f"graph-pack-{uuid4()}",
+                query=request.query,
+                route=decision.route,
+                route_reason=decision.reason,
+                index_version=self._store.active_version or "uncommitted",
+                items=items,
+                graph_paths=retrieval.graph_paths,
+                estimated_tokens=used_tokens,
+                maximum_tokens=request.maximum_tokens,
+            )
+            return ContextPackResponse(
+                pack=pack,
+                diagnostics=ContextPackDiagnostics(
+                    hit_count=len(items),
+                    graph_used=retrieval.graph_used,
+                    graph_path_count=len(retrieval.graph_paths),
+                    embedding_backend=self._settings.embedding_backend,
+                ),
+            )
+
     def _query_locked(self, request: QueryRequest, principal: Principal) -> QueryResponse:
         trace_id = str(uuid4())
         decision = self._router.route(request.question)
@@ -346,5 +435,78 @@ class EnterpriseRagService:
             for document in self._store.authorized_documents(principal.roles)
         ]
 
+    def authorized_document_page(
+        self,
+        principal: Principal,
+        *,
+        query: str = "",
+        offset: int = 0,
+        limit: int = 100,
+    ) -> KnowledgeSourcePage:
+        """List source metadata without bypassing the retrieval ACL boundary."""
+
+        with self._index_lock:
+            authorized = list(self._store.authorized_documents(principal.roles))
+            authorized_total = len(authorized)
+            normalized_query = " ".join(query.casefold().split())
+            if normalized_query:
+                authorized = [
+                    document
+                    for document in authorized
+                    if any(
+                        normalized_query in value.casefold()
+                        for value in (
+                            document.title,
+                            document.document_id,
+                            document.business_class,
+                            document.owner,
+                            document.source_uri or "",
+                        )
+                    )
+                ]
+            authorized.sort(
+                key=lambda document: (
+                    document.title.casefold(),
+                    document.document_id.casefold(),
+                )
+            )
+            total = len(authorized)
+            items = [
+                KnowledgeSource(
+                    document_id=document.document_id,
+                    title=document.title,
+                    owner=document.owner,
+                    business_class=document.business_class,
+                    sensitivity=document.sensitivity,
+                    version=document.version,
+                    source_uri=document.source_uri,
+                )
+                for document in authorized[offset : offset + limit]
+            ]
+            return KnowledgeSourcePage(
+                items=items,
+                total=total,
+                authorized_total=authorized_total,
+                index_total=sum(1 for _ in self._store.documents()),
+                offset=offset,
+                limit=limit,
+                has_more=offset + len(items) < total,
+            )
+
     def document_count(self) -> int:
         return sum(1 for _ in self._store.documents())
+
+
+def _bounded_context_text(content: str, maximum_tokens: int) -> tuple[str, int]:
+    """Keep draft packs within budget while preserving deterministic token accounting."""
+
+    if maximum_tokens <= 0:
+        return "", 0
+    token_count = count_tokens(content)
+    if token_count <= maximum_tokens:
+        return content, token_count
+    spans = token_spans(content)
+    if not spans:
+        return "", 0
+    end = spans[maximum_tokens - 1][1]
+    return content[:end].rstrip(), maximum_tokens

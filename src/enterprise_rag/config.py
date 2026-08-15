@@ -12,10 +12,10 @@ if TYPE_CHECKING:
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="RAG_", extra="ignore")
 
-    app_name: str = "Enterprise RAG P2 Experimental"
+    app_name: str = "Enterprise Graph RAG"
     dev_mode: bool = True
     jwt_secret: str = "local-development-secret-change-me"
-    jwt_issuer: str = "enterprise-rag-p2"
+    jwt_issuer: str = "enterprise-graph-rag"
     jwt_audience: str = "enterprise-rag-api"
     jwt_ttl_minutes: int = 60
 
@@ -91,7 +91,7 @@ class Settings(BaseSettings):
 
     # 向量存储。memory 保留 P1/P2 的进程内实现供离线测试使用；
     # milvus 走 MilvusClient，URI 是本地文件即嵌入式 Milvus Lite，换成 grpc 地址即独立部署。
-    vector_backend: Literal["memory", "milvus"] = "memory"
+    vector_backend: Literal["memory", "milvus"] = "milvus"
     milvus_uri: str = "data/milvus/enterprise-rag.db"
     milvus_token: SecretStr = SecretStr("")
     milvus_collection: str = "enterprise_chunks"
@@ -115,15 +115,16 @@ class Settings(BaseSettings):
     graph_max_hops: int = 2
     graph_expansion_limit: int = 12
     graph_score_decay: float = 0.82
-    index_version: str = "p2-techqa-1000-v1"
+    index_version: str = "p3-techqa-28481-v1"
     audit_path: Path = Path("data/audit.jsonl")
     feedback_path: Path = Path("data/feedback.jsonl")
     demo_db_path: Path = Path("data/demo.sqlite")
-    corpus_path: Path = Path("data/processed/techqa_p2/documents.jsonl")
-    relations_path: Path = Path("data/processed/techqa_p2/relations.jsonl")
-    graph_state_path: Path = Path("data/graph-state.json")
-    gold_path: Path = Path("data/processed/techqa_p2/golden_questions.jsonl")
-    evaluation_report_path: Path = Path("reports/p2-baseline-current.json")
+    corpus_path: Path = Path("data/processed/techqa_p3/documents.jsonl")
+    relations_path: Path = Path("data/processed/techqa_p3/relations.jsonl")
+    graph_state_path: Path = Path("data/p3-milvus-graph-state.json")
+    gold_path: Path = Path("data/processed/techqa_p3/golden_questions.curated.jsonl")
+    evaluation_report_path: Path = Path("reports/p3-milvus-hashing.json")
+    library_default_roles: str = "engineering,operations,finance,knowledge_admin"
 
     def chunking_config(self) -> "ChunkingConfig":
         from enterprise_rag.chunking import ChunkingConfig

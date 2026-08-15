@@ -1,10 +1,15 @@
+import argparse
+import hashlib
 import json
+import re
+import tempfile
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
+import uvicorn
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -28,16 +33,20 @@ from enterprise_rag.graph import VersionedKnowledgeGraph
 from enterprise_rag.graph_retrieval import GraphRagRetriever
 from enterprise_rag.models import (
     AuditEvent,
+    ContextPackRequest,
+    ContextPackResponse,
     DocumentInput,
     FeedbackEvent,
     FeedbackRequest,
     IndexPublishRequest,
     IndexSnapshotInfo,
+    KnowledgeSourcePage,
     QueryRequest,
     QueryResponse,
     TokenRequest,
     TokenResponse,
 )
+from enterprise_rag.parsing import parse_document, to_document_input
 from enterprise_rag.router import RuleBasedRouter
 from enterprise_rag.service import EnterpriseRagService
 from enterprise_rag.sql_tool import ReadOnlySqlTool
@@ -99,7 +108,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(
         title=resolved_settings.app_name,
         version="0.2.0",
-        description="P2 experimental: ACL-first Graph RAG, versioned index, tools, and audit",
+        description="ACL-first Graph RAG with versioned indexes, tools, and audit",
         lifespan=lifespan,
     )
     static_path = Path(__file__).parent / "static"
@@ -143,6 +152,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "relations": rag_service.current_index_info().relations,
             "index_version": rag_service.current_index_info().version,
             "graph_enabled": resolved_settings.graph_enabled,
+            "stats": {
+                "documents": rag_service.document_count(),
+                "chunks": rag_service.current_index_info().chunks,
+                "relations": rag_service.current_index_info().relations,
+            },
+            "agent_loop_integration": False,
+            "prompt_injection": False,
         }
 
     @app.post("/dev/token", response_model=TokenResponse, tags=["development"])
@@ -160,6 +176,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ) -> QueryResponse:
         return rag_service.query(query_request, principal)
 
+    @app.post(
+        "/v1/context-packs",
+        response_model=ContextPackResponse,
+        tags=["query"],
+    )
+    def build_context_pack(
+        context_request: ContextPackRequest,
+        principal: PrincipalDependency,
+        rag_service: ServiceDependency,
+    ) -> ContextPackResponse:
+        return rag_service.build_context_pack(context_request, principal)
+
     @app.post("/v1/documents", tags=["ingestion"])
     def ingest_document(
         document: DocumentInput,
@@ -170,6 +198,68 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="admin role required")
         document_id, chunk_count = rag_service.ingest(document)
         return {"document_id": document_id, "chunk_count": chunk_count, "status": "indexed"}
+
+    @app.post("/v1/documents/upload", status_code=201, tags=["ingestion"])
+    def upload_document(
+        principal: PrincipalDependency,
+        rag_service: ServiceDependency,
+        file: Annotated[UploadFile, File()],
+        source_key: Annotated[str | None, Form()] = None,
+        namespace: Annotated[str, Form()] = "enterprise_knowledge",
+        title: Annotated[str | None, Form()] = None,
+        metadata_json: Annotated[str, Form()] = "{}",
+    ) -> dict[str, object]:
+        if "knowledge_admin" not in principal.roles:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="admin role required")
+        try:
+            metadata = json.loads(metadata_json)
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=422, detail="metadata_json must be valid JSON") from exc
+        if not isinstance(metadata, dict):
+            raise HTTPException(status_code=422, detail="metadata_json must be an object")
+
+        filename = Path(file.filename or "uploaded.txt").name
+        suffix = Path(filename).suffix.lower() or ".txt"
+        content = file.file.read()
+        if not content:
+            raise HTTPException(status_code=422, detail="uploaded document is empty")
+        document_id = _graph_document_id(source_key or Path(filename).stem)
+        allowed_roles = _metadata_roles(
+            metadata.get("allowed_roles"),
+            resolved_settings.library_default_roles,
+        )
+        try:
+            with tempfile.TemporaryDirectory(prefix="graph-rag-upload-") as temporary:
+                upload_path = Path(temporary) / f"source{suffix}"
+                upload_path.write_bytes(content)
+                parsed = parse_document(upload_path)
+                parsed.source_name = filename
+                document = to_document_input(
+                    parsed,
+                    document_id=document_id,
+                    owner=str(metadata.get("owner") or principal.subject),
+                    business_class=str(metadata.get("business_class") or namespace),
+                    allowed_roles=allowed_roles,
+                    title=title,
+                    sensitivity=str(metadata.get("sensitivity") or "internal"),
+                    version=str(metadata.get("version") or "1.0"),
+                    source_uri=f"upload://{filename}",
+                )
+            indexed_id, chunk_count = rag_service.ingest(document)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return {
+            "status": "indexed",
+            "document_id": indexed_id,
+            "source_key": source_key or document_id,
+            "namespace": namespace,
+            "title": document.title,
+            "original_filename": filename,
+            "version": document.version,
+            "chunk_count": chunk_count,
+            "index_version": rag_service.current_index_info().version,
+            "content_hash": hashlib.sha256(content).hexdigest(),
+        }
 
     @app.get("/v1/index", response_model=IndexSnapshotInfo, tags=["ingestion"])
     def index_info(
@@ -225,6 +315,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         rag_service: ServiceDependency,
     ) -> list[dict[str, object]]:
         return rag_service.authorized_documents(principal)
+
+    @app.get(
+        "/v1/knowledge/sources",
+        response_model=KnowledgeSourcePage,
+        tags=["ingestion"],
+    )
+    def knowledge_sources(
+        principal: PrincipalDependency,
+        rag_service: ServiceDependency,
+        query: Annotated[str, Query(max_length=300)] = "",
+        offset: Annotated[int, Query(ge=0)] = 0,
+        limit: Annotated[int, Query(ge=1, le=200)] = 100,
+    ) -> KnowledgeSourcePage:
+        return rag_service.authorized_document_page(
+            principal,
+            query=query,
+            offset=offset,
+            limit=limit,
+        )
 
     @app.get("/v1/samples", tags=["query"])
     def samples(principal: PrincipalDependency) -> list[dict[str, str]]:
@@ -292,3 +401,34 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
 
 app = create_app()
+
+
+def _graph_document_id(value: str) -> str:
+    normalized = re.sub(r"[^A-Za-z0-9_.:-]+", "-", value.strip()).strip("-.")
+    if not normalized:
+        normalized = f"document-{hashlib.sha256(value.encode('utf-8')).hexdigest()[:12]}"
+    return normalized[:128]
+
+
+def _metadata_roles(value: object, configured: str) -> list[str]:
+    if isinstance(value, list):
+        roles = [str(role).strip() for role in value if str(role).strip()]
+    elif isinstance(value, str):
+        roles = [role.strip() for role in value.split(",") if role.strip()]
+    else:
+        roles = [role.strip() for role in configured.split(",") if role.strip()]
+    if not roles:
+        raise ValueError("allowed_roles must contain at least one role")
+    return roles
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Run the Graph RAG review service")
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=8000)
+    args = parser.parse_args()
+    uvicorn.run("enterprise_rag.main:app", host=args.host, port=args.port)
+
+
+if __name__ == "__main__":
+    main()

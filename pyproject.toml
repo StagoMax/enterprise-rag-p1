@@ -17,6 +17,7 @@ dependencies = [
 ]
 
 [project.scripts]
+enterprise-graph-rag-panel = "enterprise_rag.main:main"
 enterprise-sag = "enterprise_sag.cli:main"
 enterprise-sag-panel = "enterprise_sag.panel:main"
 

@@ -80,6 +80,30 @@ class DocumentRecord(DocumentInput):
     indexed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
+class KnowledgeSource(BaseModel):
+    """ACL-safe document metadata exposed by the source catalog."""
+
+    document_id: str
+    title: str
+    owner: str
+    business_class: str
+    sensitivity: str
+    version: str
+    source_uri: str | None = None
+
+
+class KnowledgeSourcePage(BaseModel):
+    """Bounded source-catalog page with explicit visibility semantics."""
+
+    items: list[KnowledgeSource] = Field(default_factory=list)
+    total: int = Field(ge=0)
+    authorized_total: int = Field(ge=0)
+    index_total: int = Field(ge=0)
+    offset: int = Field(ge=0)
+    limit: int = Field(ge=1)
+    has_more: bool
+
+
 class Chunk(BaseModel):
     chunk_id: str
     document_id: str
@@ -161,6 +185,62 @@ class QueryRequest(BaseModel):
     question: str = Field(min_length=2, max_length=4000)
     conversation_id: str | None = None
     retrieval_mode: Literal["auto", "hybrid", "graph"] = "auto"
+
+
+class ContextPackRequest(BaseModel):
+    """Review-only retrieval request; it never invokes answer generation."""
+
+    query: str = Field(min_length=1, max_length=4000)
+    top_k: int = Field(default=12, ge=1, le=30)
+    maximum_tokens: int = Field(default=5000, ge=256, le=16000)
+    retrieval_mode: Literal["auto", "hybrid", "graph"] = "auto"
+
+
+class ContextPackItem(BaseModel):
+    item_id: str
+    chunk_id: str
+    document_id: str
+    title: str
+    content: str
+    anchor: str
+    section_title: str | None = None
+    score: float
+    lexical_score: float
+    dense_score: float
+    retrieval_mode: Literal["hybrid", "graph"]
+    graph_path: list[str] = Field(default_factory=list)
+    graph_relations: list[GraphRelationType] = Field(default_factory=list)
+    selection_reason: str
+    estimated_tokens: int = Field(ge=0)
+
+
+class DraftContextPack(BaseModel):
+    pack_id: str
+    status: Literal["draft"] = "draft"
+    query: str
+    route: Route
+    route_reason: str
+    index_version: str
+    retrieval_engine: Literal["graph_rag"] = "graph_rag"
+    items: list[ContextPackItem] = Field(default_factory=list)
+    graph_paths: list[GraphPath] = Field(default_factory=list)
+    estimated_tokens: int = Field(ge=0)
+    maximum_tokens: int = Field(ge=256)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class ContextPackDiagnostics(BaseModel):
+    hit_count: int = Field(ge=0)
+    graph_used: bool
+    graph_path_count: int = Field(ge=0)
+    embedding_backend: str
+    agent_loop_integration: Literal[False] = False
+    prompt_injection: Literal[False] = False
+
+
+class ContextPackResponse(BaseModel):
+    pack: DraftContextPack
+    diagnostics: ContextPackDiagnostics
 
 
 class QueryResponse(BaseModel):
