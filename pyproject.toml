@@ -11,9 +11,14 @@ dependencies = [
   "pymilvus>=3,<4",
   "pydantic-settings>=2.6,<3",
   "pyjwt>=2.10,<3",
+  "python-multipart>=0.0.20,<1",
   "sqlglot>=26,<30",
   "uvicorn[standard]>=0.32,<1",
 ]
+
+[project.scripts]
+enterprise-sag = "enterprise_sag.cli:main"
+enterprise-sag-panel = "enterprise_sag.panel:main"
 
 [project.optional-dependencies]
 models = [
@@ -49,7 +54,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/enterprise_rag"]
+packages = ["src/enterprise_rag", "src/enterprise_sag"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -15,6 +15,7 @@ data/*graph-state*.json
 data/raw/
 data/milvus/
 data/milvus-standalone/
+data/sag_memory/
 .cache/
 models/
 reports/*.tmp

@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="description" content="本地 SAG 多路检索审阅面板">
+    <link rel="icon" href="data:,">
+    <title>SAG 检索审阅台</title>
+    <link rel="stylesheet" href="/static/app.css">
+    <script defer src="/shared/lucide-local.js"></script>
+    <script defer src="/static/app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">跳到检索结果</a>
+
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"><i data-lucide="network"></i></span>
+        <div>
+          <p class="eyebrow">SAG 记忆基础设施</p>
+          <h1>检索审阅台</h1>
+        </div>
+      </div>
+      <div class="header-status" aria-label="安全边界">
+        <span class="status-indicator" aria-hidden="true"></span>
+        <span>仅审阅 · 不生成答案 · 不注入提示词（Prompt）</span>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <aside class="query-panel" aria-labelledby="query-heading">
+        <div class="panel-heading">
+          <p class="section-index">01 / 检索请求</p>
+          <h2 id="query-heading">构造检索请求</h2>
+          <p>输入问题后查看证据需求规划、覆盖情况和命中的原始证据块。</p>
+        </div>
+
+        <form id="search-form">
+          <label class="field-label" for="query">问题</label>
+          <textarea
+            id="query"
+            name="query"
+            rows="7"
+            maxlength="4000"
+            required
+            placeholder="例如：我的 Harness 记忆架构应该如何管理当前上下文、长期记忆和异步提取？"
+          ></textarea>
+          <div class="field-help"><span id="query-count">0</span> / 4000</div>
+
+          <div class="sample-group" aria-label="示例问题">
+            <span>快速示例</span>
+            <button
+              type="button"
+              class="sample-button"
+              data-sample="我的 Harness 记忆架构应该如何管理当前上下文、长期记忆、异步提取和时序更新？"
+              data-purpose="architecture_review"
+            >Harness 架构</button>
+            <button
+              type="button"
+              class="sample-button"
+              data-sample="介绍一下我自己：我的主要经历、价值观、职业选择、长期目标和做事偏好是什么？"
+              data-purpose="personalized_answer"
+            >个人画像</button>
+          </div>
+
+          <div class="form-grid">
+            <label>
+              <span>用途（Purpose）</span>
+              <select id="purpose" name="purpose">
+                <option value="evidence_review">证据审阅</option>
+                <option value="architecture_review">架构审阅</option>
+                <option value="personalized_answer">个性化回答</option>
+                <option value="decision_support">决策支持</option>
+              </select>
+            </label>
+            <label>
+              <span>返回块数</span>
+              <input id="top-k" name="top_k" type="number" min="1" max="30" value="12">
+            </label>
+            <label>
+              <span>令牌（Token）预算</span>
+              <input id="maximum-tokens" name="maximum_tokens" type="number" min="256" max="16000" step="256" value="5000">
+            </label>
+          </div>
+
+          <details class="advanced-options">
+            <summary>高级选项</summary>
+            <div class="advanced-grid">
+              <label>
+                <span>主体引用（Subject refs）</span>
+                <input id="subject-refs" placeholder="user:123, account:456">
+                <small>使用逗号分隔；当前进入请求与规划，索引尚未落主体/ACL 列。</small>
+              </label>
+              <label>
+                <span>数据域（Namespaces）</span>
+                <input id="namespaces" placeholder="enterprise_knowledge, user_memory">
+                <small>预留契约字段；当前单库原型尚不执行数据域过滤。</small>
+              </label>
+            </div>
+          </details>
+
+          <label class="switch-row" for="use-deepseek">
+            <span>
+              <strong>DeepSeek 规划与支持判定</strong>
+              <small>开启会发送问题与候选事件（Event）；关闭后全程本地运行。</small>
+            </span>
+            <input id="use-deepseek" type="checkbox" checked>
+          </label>
+
+          <button id="submit-button" class="primary-button" type="submit">
+            <i data-lucide="search"></i>
+            <span>运行检索</span>
+          </button>
+        </form>
+
+        <details id="ingestion-card" class="ingestion-card">
+          <summary>
+            <span class="summary-icon" aria-hidden="true"><i data-lucide="upload"></i></span>
+            <span>
+              <strong>新增资料（增量）</strong>
+              <small>上传新资料，或为已有资料追加不可变版本</small>
+            </span>
+          </summary>
+          <form id="ingestion-form" class="ingestion-form">
+            <label class="upload-dropzone" for="source-file">
+              <i data-lucide="upload" aria-hidden="true"></i>
+              <strong>选择资料文件</strong>
+              <span id="source-file-name">DOCX、PDF、PPTX、XLSX、HTML、Markdown 或 TXT</span>
+              <input
+                id="source-file"
+                name="file"
+                type="file"
+                accept=".docx,.pdf,.pptx,.xlsx,.html,.htm,.md,.markdown,.txt"
+                required
+              >
+            </label>
+
+            <div class="ingestion-grid">
+              <label>
+                <span>资料标题</span>
+                <input id="source-title" name="title" maxlength="300" placeholder="默认使用文档标题">
+              </label>
+              <label>
+                <span>数据域（Namespace）</span>
+                <input id="source-namespace" name="namespace" maxlength="120" value="enterprise_knowledge" required>
+              </label>
+            </div>
+
+            <label>
+              <span>稳定来源标识（Source key）</span>
+              <input id="source-key" name="source_key" maxlength="300" placeholder="例如：handbook/publishing-policy">
+              <small>建议由业务系统提供稳定键；相同键再次上传会生成下一版本。</small>
+            </label>
+
+            <details class="advanced-options compact-options">
+              <summary>版本与元数据</summary>
+              <div class="advanced-grid">
+                <label>
+                  <span>资料标识（Asset ID）</span>
+                  <input id="source-asset-id" name="asset_id" pattern="ast_[a-f0-9]{24,32}" placeholder="更新已有资料时填写">
+                  <small>新建资料无需填写；从下方资料列表选择更新时会自动带入。</small>
+                </label>
+                <label>
+                  <span>扩展元数据（JSON）</span>
+                  <textarea id="source-metadata" name="metadata_json" rows="4">{}</textarea>
+                  <small>可传部门、标签、来源系统等业务字段，必须是 JSON 对象。</small>
+                </label>
+              </div>
+            </details>
+
+            <div id="ingestion-feedback" class="ingestion-feedback" aria-live="polite"></div>
+            <button id="ingestion-submit" class="primary-button" type="submit">
+              <i data-lucide="upload"></i>
+              <span>增量接入资料</span>
+            </button>
+          </form>
+
+          <section class="source-list-section" aria-labelledby="source-list-title">
+            <div class="source-list-heading">
+              <strong id="source-list-title">当前资料</strong>
+              <button id="refresh-sources" class="text-button" type="button">刷新</button>
+            </div>
+            <div id="source-list" class="source-list">
+              <p class="source-list-empty">正在读取资料列表…</p>
+            </div>
+          </section>
+        </details>
+
+        <section class="runtime-card" aria-labelledby="runtime-title">
+          <div>
+            <span class="status-indicator" id="runtime-dot" aria-hidden="true"></span>
+            <strong id="runtime-title">检查本地索引</strong>
+          </div>
+          <dl id="runtime-facts">
+            <div><dt>索引版本</dt><dd id="runtime-index">—</dd></div>
+            <div><dt>事件数</dt><dd id="runtime-events">—</dd></div>
+            <div><dt>实体数</dt><dd id="runtime-entities">—</dd></div>
+            <div><dt>完整性</dt><dd id="runtime-integrity">—</dd></div>
+          </dl>
+        </section>
+      </aside>
+
+      <main id="main-content" tabindex="-1">
+        <div class="result-heading">
+          <div>
+            <p class="section-index">02 / 证据结果</p>
+            <h2>检索审阅结果</h2>
+          </div>
+          <span class="review-badge"><i data-lucide="shield-check"></i> 上下文包草稿（Draft Context Pack）</span>
+        </div>
+
+        <section id="empty-state" class="state-card empty-state">
+          <i data-lucide="search" aria-hidden="true"></i>
+          <h3>等待检索请求</h3>
+          <p>结果会按证据需求（EvidenceNeed）分路展示。展开任意证据块即可查看原文、锚点和完整检索路径。</p>
+        </section>
+
+        <section id="loading-state" class="state-card loading-state" aria-live="polite" hidden>
+          <div class="spinner" aria-hidden="true"></div>
+          <div>
+            <h3>正在构造上下文包草稿</h3>
+            <p id="loading-message">规划证据需求（EvidenceNeed），随后运行多路 SAG 检索……</p>
+            <small>首次加载嵌入模型或调用 DeepSeek 时，通常需要 20–60 秒。</small>
+          </div>
+        </section>
+
+        <section id="error-state" class="state-card error-state" role="alert" hidden>
+          <i data-lucide="shield-check" aria-hidden="true"></i>
+          <div>
+            <h3>检索没有完成</h3>
+            <p id="error-message"></p>
+            <button id="retry-button" class="secondary-button" type="button">重试当前请求</button>
+          </div>
+        </section>
+
+        <section id="results" hidden aria-live="polite">
+          <div id="result-summary" class="summary-grid"></div>
+
+          <section class="result-section" aria-labelledby="needs-title">
+            <div class="section-heading-row">
+              <div>
+                <p class="section-index">需求规划</p>
+                <h3 id="needs-title">证据需求（EvidenceNeed）与覆盖情况</h3>
+              </div>
+              <span id="planner-label" class="technical-label"></span>
+            </div>
+            <div id="needs-grid" class="needs-grid"></div>
+          </section>
+
+          <section class="result-section" aria-labelledby="blocks-title">
+            <div class="section-heading-row">
+              <div>
+                <p class="section-index">证据块</p>
+                <h3 id="blocks-title">入选证据块</h3>
+              </div>
+              <span id="block-count" class="technical-label"></span>
+            </div>
+            <div id="blocks-list" class="blocks-list"></div>
+          </section>
+
+          <section id="excluded-section" class="result-section" aria-labelledby="excluded-title" hidden>
+            <div class="section-heading-row">
+              <div>
+                <p class="section-index">预算控制</p>
+                <h3 id="excluded-title">未纳入项目</h3>
+              </div>
+            </div>
+            <ul id="excluded-list" class="excluded-list"></ul>
+          </section>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
