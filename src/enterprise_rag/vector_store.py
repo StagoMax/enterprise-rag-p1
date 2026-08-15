@@ -40,6 +40,7 @@ from enterprise_rag.retrieval import (
 
 _ROLE_TOKEN = re.compile(ROLE_PATTERN)
 _DOCUMENT_ID_TOKEN = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
+_MILVUS_MAX_QUERY_RESULT_WINDOW = 16_384
 
 # (已处理文档数, 文档总数, 已写入分块数)
 ProgressCallback = Callable[[int, int, int], None]
@@ -907,10 +908,36 @@ class MilvusHybridStore:
             ids = ", ".join(f'"{doc}"' for doc in sorted(validated_candidate_ids))
             expression = f"{expression} and document_id in [{ids}]"
 
-        document_target = top_k
-        limit = max(top_k * self._search_multiplier, top_k)
+        # A GraphRAG expansion supplies an explicit, usually small document
+        # allow-list.  Size recall and reranking against that finite set rather
+        # than the caller's (possibly larger) requested Top-K.  Otherwise
+        # adaptive recall keeps expanding forever while trying to discover more
+        # distinct documents than the filter can possibly return.
+        available_document_limit = (
+            len(validated_candidate_ids)
+            if validated_candidate_ids is not None
+            else None
+        )
+        effective_top_k = (
+            min(top_k, available_document_limit)
+            if available_document_limit is not None
+            else top_k
+        )
+        document_target = effective_top_k
+        limit = max(
+            effective_top_k * self._search_multiplier,
+            effective_top_k,
+        )
         if self._reranker is not None and not exact:
-            rerank_document_limit = max(top_k * 4, self._rerank_candidates)
+            rerank_document_limit = max(
+                effective_top_k * 4,
+                self._rerank_candidates,
+            )
+            if available_document_limit is not None:
+                rerank_document_limit = min(
+                    rerank_document_limit,
+                    available_document_limit,
+                )
             document_target = max(document_target, rerank_document_limit)
             # Use the same chunk-level recall budget as a direct Top-N document
             # retrieval. Otherwise a Top-3 response would rerank 20 documents
@@ -960,7 +987,9 @@ class MilvusHybridStore:
             limit = min(limit * 2, maximum_limit)
 
         if self._reranker is not None and not exact and hits:
-            candidate_limit = max(top_k * 4, self._rerank_candidates)
+            candidate_limit = max(effective_top_k * 4, self._rerank_candidates)
+            if available_document_limit is not None:
+                candidate_limit = min(candidate_limit, available_document_limit)
             candidates = aggregate_document_candidates(
                 hits,
                 query,
@@ -1197,7 +1226,10 @@ class MilvusHybridStore:
             for branch in branches
         ]
         # Preserve the full per-branch candidate union before application reranking.
-        hybrid_limit = limit * len(requests)
+        hybrid_limit = min(
+            limit * len(requests),
+            _MILVUS_MAX_QUERY_RESULT_WINDOW,
+        )
         results = self._client.hybrid_search(
             self._alias,
             requests,

@@ -9,6 +9,7 @@ from enterprise_rag.answering import (
 from enterprise_rag.llm import (
     LlmUnavailableError,
     OpenAiCompatibleChatModel,
+    OpenAiResponsesChatModel,
     strip_reasoning,
 )
 from enterprise_rag.models import Chunk, DocumentStatus, SearchHit
@@ -48,6 +49,44 @@ def build_model(handler, **kwargs) -> OpenAiCompatibleChatModel:
 
 def completion(content: str) -> httpx.Response:
     return httpx.Response(200, json={"choices": [{"message": {"content": content}}]})
+
+
+def test_responses_adapter_extracts_output_text_and_sends_instructions() -> None:
+    seen: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        import json
+
+        seen.append(json.loads(request.content))
+        return httpx.Response(
+            200,
+            json={
+                "output": [
+                    {"content": [{"type": "output_text", "text": '{"ok":true}'}]}
+                ]
+            },
+        )
+
+    client = httpx.Client(
+        transport=httpx.MockTransport(handler), base_url="http://responses.test/v1"
+    )
+    model = OpenAiResponsesChatModel(
+        "http://responses.test/v1",
+        "test-key",
+        "gpt-5.6-terra",
+        max_tokens=321,
+        client=client,
+    )
+
+    assert model.complete("system", "user") == '{"ok":true}'
+    assert seen == [
+        {
+            "model": "gpt-5.6-terra",
+            "instructions": "system",
+            "input": "user",
+            "max_output_tokens": 321,
+        }
+    ]
 
 
 def test_strip_reasoning_removes_closed_block():

@@ -1,0 +1,32 @@
+{
+  "extraction_version": "p3-knowledge-terra-v4-2026-08-10",
+  "model": "gpt-5.6-terra",
+  "documents": 1,
+  "llm_requests": 1,
+  "sections": 4,
+  "section_type_counts": {
+    "content": 1,
+    "related_information": 1,
+    "summary": 1,
+    "title": 1
+  },
+  "nodes": 17,
+  "node_type_counts": {
+    "document": 1,
+    "file": 3,
+    "fix": 1,
+    "product": 2,
+    "protocol": 2,
+    "technology": 1,
+    "version": 2,
+    "vulnerability": 5
+  },
+  "mentions": 18,
+  "relations": 0,
+  "relation_type_counts": {},
+  "validation_rejections": 20,
+  "document_relations": 0,
+  "document_relation_projection_counts": {},
+  "elapsed_seconds": 43.577,
+  "output": "artifacts\\p3-knowledge-v4-pilot1"
+}

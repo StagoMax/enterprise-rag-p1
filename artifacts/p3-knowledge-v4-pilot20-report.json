@@ -1,0 +1,59 @@
+{
+  "extraction_version": "p3-knowledge-terra-v4-2026-08-10",
+  "model": "gpt-5.6-terra",
+  "documents": 20,
+  "llm_requests": 23,
+  "sections": 84,
+  "section_type_counts": {
+    "cause": 2,
+    "content": 25,
+    "problem": 3,
+    "related_information": 11,
+    "resolution": 3,
+    "summary": 17,
+    "symptom": 3,
+    "title": 20
+  },
+  "nodes": 297,
+  "node_type_counts": {
+    "cause": 1,
+    "command": 9,
+    "component": 12,
+    "configuration": 8,
+    "document": 38,
+    "error_code": 16,
+    "file": 28,
+    "fix": 11,
+    "operating_system": 4,
+    "organization": 1,
+    "procedure": 8,
+    "product": 38,
+    "protocol": 5,
+    "runtime": 5,
+    "symptom": 3,
+    "technology": 7,
+    "version": 67,
+    "vulnerability": 36
+  },
+  "mentions": 395,
+  "relations": 40,
+  "relation_type_counts": {
+    "affects": 8,
+    "applies_to": 4,
+    "caused_by": 1,
+    "references": 6,
+    "related_to": 1,
+    "requires": 2,
+    "version_of": 18
+  },
+  "validation_rejections": 394,
+  "document_relations": 8,
+  "document_relation_projection_counts": {
+    "shared_fix": 2,
+    "shared_operating_system": 2,
+    "shared_runtime": 2,
+    "shared_vulnerability": 8
+  },
+  "elapsed_seconds": 165.808,
+  "output": "artifacts\\p3-knowledge-v4-pilot20"
+}

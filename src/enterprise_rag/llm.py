@@ -150,3 +150,98 @@ class OpenAiCompatibleChatModel:
             # 思维链占满了 max_tokens，正文为空。宁可降级也不返回空答案。
             raise LlmUnavailableError("生成后端只返回了思维链，正文为空")
         return answer
+
+
+class OpenAiResponsesChatModel:
+    """Adapter for OpenAI-compatible ``/responses`` endpoints."""
+
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str,
+        model: str,
+        *,
+        timeout_seconds: float = 90.0,
+        max_tokens: int = 1200,
+        max_retries: int = 2,
+        client: httpx.Client | None = None,
+    ) -> None:
+        if not base_url or not model:
+            raise ValueError("LLM base_url and model must not be empty")
+        self._model = model
+        self._max_tokens = max_tokens
+        self._max_retries = max(max_retries, 0)
+        self._owns_client = client is None
+        self.request_count = 0
+        self._client = client or httpx.Client(
+            base_url=base_url.rstrip("/"),
+            timeout=timeout_seconds,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+        )
+
+    def close(self) -> None:
+        if self._owns_client:
+            self._client.close()
+
+    def complete(self, system_prompt: str, user_prompt: str) -> str:
+        last_error: Exception | None = None
+        payload = {
+            "model": self._model,
+            "instructions": system_prompt,
+            "input": user_prompt,
+            "max_output_tokens": self._max_tokens,
+        }
+        for attempt in range(self._max_retries + 1):
+            try:
+                self.request_count += 1
+                response = self._client.post("/responses", json=payload)
+            except httpx.HTTPError as exc:
+                last_error = exc
+            else:
+                if response.status_code in _RETRYABLE_STATUS:
+                    last_error = LlmUnavailableError(
+                        OpenAiCompatibleChatModel._error_description(
+                            response, retryable=True
+                        )
+                    )
+                elif response.is_error:
+                    raise LlmUnavailableError(
+                        OpenAiCompatibleChatModel._error_description(response)
+                    )
+                else:
+                    return self._extract(response.json())
+            if attempt < self._max_retries:
+                time.sleep(0.5 * (2**attempt))
+        raise LlmUnavailableError(
+            f"Responses backend unavailable after retries: {last_error}"
+        )
+
+    @staticmethod
+    def _extract(body: dict[str, object]) -> str:
+        output_text = body.get("output_text")
+        if isinstance(output_text, str) and output_text.strip():
+            return strip_reasoning(output_text)
+        output = body.get("output")
+        texts: list[str] = []
+        if isinstance(output, list):
+            for item in output:
+                if not isinstance(item, dict):
+                    continue
+                content = item.get("content")
+                if not isinstance(content, list):
+                    continue
+                for part in content:
+                    if isinstance(part, dict) and isinstance(part.get("text"), str):
+                        texts.append(part["text"])
+        answer = strip_reasoning("\n".join(texts))
+        if not answer:
+            status = body.get("status")
+            incomplete = body.get("incomplete_details")
+            raise LlmUnavailableError(
+                f"Responses backend returned no output text (status={status}, "
+                f"incomplete_details={incomplete})"
+            )
+        return answer

@@ -163,6 +163,67 @@ def test_reranker_uses_same_chunk_budget_as_direct_top20_retrieval():
     assert len(results) == 3
 
 
+def test_candidate_restricted_reranking_caps_adaptive_target_to_allow_list():
+    def hit(index: int) -> SearchHit:
+        document_id = f"document-{index}"
+        chunk = Chunk(
+            chunk_id=f"{document_id}:1.0:0",
+            document_id=document_id,
+            title=document_id,
+            content="content",
+            position=0,
+            anchor="section:0",
+            allowed_roles=frozenset({"engineering"}),
+            version="1.0",
+            status=DocumentStatus.ACTIVE,
+            business_class="test",
+        )
+        return SearchHit(chunk=chunk, score=1.0, lexical_score=1.0, dense_score=1.0)
+
+    class Reranker:
+        def __init__(self) -> None:
+            self.document_count = 0
+
+        def score(self, query, documents):
+            self.document_count = len(documents)
+            return [float(len(documents) - index) for index in range(len(documents))]
+
+    reranker = Reranker()
+    store = object.__new__(MilvusHybridStore)
+    store._active_version = "v1"
+    store._tenant_id = "demo"
+    store._reranker = reranker
+    store._search_multiplier = 30
+    store._adaptive_recall_enabled = True
+    store._adaptive_recall_max_chunks = 4096
+    store._rerank_candidates = 20
+    store._rerank_strategy = "replace"
+    store._reranker_weight = 0.5
+    store._rerank_rrf_k = 60
+    store._field_names = lambda collection_name: set()
+    store._alias = "chunks"
+    store._recall_branches = lambda query: []
+    store._hydrate_parent_content = lambda hits: hits
+    limits: list[int] = []
+
+    def hybrid_hits(query, expression, limit, roles, tenant_id, *, branches=None):
+        limits.append(limit)
+        return [hit(index) for index in range(12)]
+
+    store._hybrid_hits = hybrid_hits
+    results = store.search(
+        "query",
+        frozenset({"engineering"}),
+        top_k=48,
+        min_score=0.0,
+        candidate_document_ids={f"document-{index}" for index in range(12)},
+    )
+
+    assert limits == [360]
+    assert reranker.document_count == 12
+    assert len(results) == 12
+
+
 def test_parent_hydration_fetches_one_representative_per_parent():
     parent_id = "doc:1.0:parent:0"
     first = Chunk(
@@ -433,6 +494,33 @@ def test_native_hybrid_places_acl_filter_on_every_request():
     assert [request.expr for request in captured["requests"]] == [expression, expression]
     assert "filter" not in captured["kwargs"]
     assert captured["kwargs"]["limit"] == 10
+
+
+def test_native_hybrid_caps_milvus_result_window():
+    store = object.__new__(MilvusHybridStore)
+    store._hybrid_rrf_k = 60
+    captured = {}
+
+    class Client:
+        def hybrid_search(self, collection, requests, **kwargs):
+            captured["limit"] = kwargs["limit"]
+            return [[]]
+
+    store._client = Client()
+    store._alias = "chunks"
+    store._native_hybrid_hits(
+        "query",
+        [
+            _RecallBranch([0.0, 1.0], "dense", "IP", 1.0),
+            _RecallBranch("query", "sparse", "BM25", 1.0),
+        ],
+        build_acl_expression(frozenset({"engineering"}), tenant_id="demo"),
+        10_000,
+        frozenset({"engineering"}),
+        "demo",
+    )
+
+    assert captured["limit"] == 16_384
 
 
 def test_tenant_is_enforced_at_request_and_result_boundaries(store):
