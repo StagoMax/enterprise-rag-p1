@@ -1,0 +1,48 @@
+{
+  "measurement": {
+    "scope": "query-to-retrieval-result only; excludes startup, indexing, HTTP, answer generation, and SAG remote LLM planning/judgement",
+    "state": "warm; one warm-up per query excluded",
+    "top_k": 3,
+    "repeats_per_query": 3,
+    "embedding": "Nemotron-3-Embed-1B, 1024 dimensions, CUDA",
+    "graph_mode": "forced graph expansion"
+  },
+  "setup_seconds": {
+    "embedding_model_load": 19.685,
+    "graph_readonly_index_attach_and_metadata_cache": 2.92
+  },
+  "corpora": {
+    "sag": {
+      "sources": 18,
+      "source_aliases": 19,
+      "evidence_units": 184,
+      "events": 184,
+      "entities": 855,
+      "event_entities": 1082
+    },
+    "graph_rag": {
+      "index_version": "p3-techqa-28481-nemotron-1024-v3",
+      "documents": 28481,
+      "chunks": 0,
+      "graph_edges": 7600,
+      "questions": 10,
+      "graph_paths_across_measured_runs": 42
+    }
+  },
+  "sag_seconds": {
+    "samples": 30,
+    "mean_seconds": 0.3364,
+    "median_seconds": 0.3315,
+    "p95_seconds": 0.3649,
+    "min_seconds": 0.3033,
+    "max_seconds": 0.4501
+  },
+  "graph_rag_seconds": {
+    "samples": 30,
+    "mean_seconds": 0.9176,
+    "median_seconds": 0.9131,
+    "p95_seconds": 1.0086,
+    "min_seconds": 0.8162,
+    "max_seconds": 1.0308
+  }
+}

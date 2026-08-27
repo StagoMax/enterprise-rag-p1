@@ -1,0 +1,5 @@
+[transformers] Unrecognized keys in `rope_parameters` for 'rope_type'='yarn': {'apply_yarn_scaling'}
+Loading weights:   0%|          | 0/146 [00:00<?, ?it/s]Loading weights: 100%|¨€¨€¨€¨€¨€¨€¨€¨€¨€¨€| 146/146 [00:00<00:00, 5955.15it/s]
+[transformers] Unrecognized keys in `rope_parameters` for 'rope_type'='yarn': {'apply_yarn_scaling'}
+[transformers] Unrecognized keys in `rope_parameters` for 'rope_type'='yarn': {'apply_yarn_scaling'}
+2026-08-21 14:41:29,228 [WARNING][__setup_ts_by_request]: failed to get mvccTs from milvus server, use client-side ts instead (iterator.py:326)
