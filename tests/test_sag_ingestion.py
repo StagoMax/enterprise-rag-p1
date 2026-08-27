@@ -12,6 +12,7 @@ from enterprise_sag.extraction import DeterministicEventExtractor
 from enterprise_sag.ingestion import IncrementalIngestionService
 from enterprise_sag.ingestion_models import IngestionOptions
 from enterprise_sag.pipeline import SagIndexBuilder
+from enterprise_sag.retrieval import SagRetriever
 from enterprise_sag.settings import SagSettings
 from enterprise_sag.store import SagSqliteStore
 
@@ -72,6 +73,37 @@ def test_incremental_ingestion_is_idempotent_and_keeps_immutable_versions(
                 "UPDATE source_versions SET title='changed' WHERE version_id=?",
                 (first.version_id,),
             )
+
+
+def test_retrieval_namespace_isolation_is_enforced_by_the_store(tmp_path: Path) -> None:
+    service = _service(tmp_path)
+    service.ingest_bytes(
+        "# 原有知识\n\n蓝色渠道只能提交普通咨询。".encode(),
+        filename="existing.md",
+        options=IngestionOptions(source_key="existing/guide", namespace="existing_knowledge"),
+    )
+    service.ingest_bytes(
+        "# 工伤审核\n\n蓝色渠道用于提交工伤医疗费用复核。".encode(),
+        filename="work-injury.md",
+        options=IngestionOptions(
+            source_key="opentopia/audit/work-injury/guide",
+            namespace="opentopia.audit.work-injury.v1",
+        ),
+    )
+
+    scoped_events = service.store.load_events(["opentopia.audit.work-injury.v1"])
+    assert scoped_events
+    assert all("工伤" in str(item["content"]) for item in scoped_events)
+
+    retriever = SagRetriever(service.store, HashingEmbeddingProvider(64))
+    hits = retriever.search(
+        "蓝色渠道提交什么",
+        top_k=10,
+        allowed_namespaces=["opentopia.audit.work-injury.v1"],
+    )
+    assert hits
+    assert all("工伤" in hit.evidence_content for hit in hits)
+    assert all("普通咨询" not in hit.evidence_content for hit in hits)
 
 
 def test_incremental_final_projection_matches_clean_build_for_current_documents(

@@ -52,13 +52,19 @@ class SagRetriever:
                 f"query={self._embeddings.dimensions}, index={indexed_dimensions}"
             )
 
-    def search(self, query: str, *, top_k: int = 10) -> list[SagSearchHit]:
+    def search(
+        self,
+        query: str,
+        *,
+        top_k: int = 10,
+        allowed_namespaces: Sequence[str] = (),
+    ) -> list[SagSearchHit]:
         normalized_query = " ".join(query.split())
         if not normalized_query:
             return []
         self._validate_dimensions()
-        events = self._store.load_events()
-        entities = self._store.load_entities()
+        events = self._store.load_events(allowed_namespaces)
+        entities = self._store.load_entities(allowed_namespaces)
         if not events:
             return []
 
@@ -93,7 +99,9 @@ class SagRetriever:
                 entity_seed_scores[entity_id] = max(float(maximum_scores[int(index)]), 0.0)
                 entity_display[entity_id] = str(entities[int(index)]["display_name"])
 
-        linked_events = self._store.event_ids_for_entities(list(entity_seed_scores))
+        linked_events = self._store.event_ids_for_entities(
+            list(entity_seed_scores), allowed_namespaces
+        )
         event_entity_score: dict[str, float] = {}
         event_shared_entities: dict[str, list[str]] = {}
         for event_id, entity_ids in linked_events.items():
@@ -110,7 +118,11 @@ class SagRetriever:
         ranked_evidence = sorted(evidence_score, key=evidence_score.get, reverse=True)[
             : self._seed_event_count
         ]
-        lexical_ids = self._store.search_event_fts(normalized_query, limit=self._seed_event_count)
+        lexical_ids = self._store.search_event_fts(
+            normalized_query,
+            limit=self._seed_event_count,
+            allowed_namespaces=allowed_namespaces,
+        )
         lexical_score = {event_id: 1.0 / (rank + 1) for rank, event_id in enumerate(lexical_ids)}
 
         initial = set(ranked_direct) | set(ranked_evidence) | set(linked_events) | set(lexical_ids)
@@ -118,7 +130,7 @@ class SagRetriever:
         frontier = set(initial)
         expansion_hop: dict[str, int] = {event_id: 0 for event_id in initial}
         for hop in range(1, self._expansion_hops + 1):
-            rows = self._store.expand_events(sorted(frontier))
+            rows = self._store.expand_events(sorted(frontier), allowed_namespaces)
             next_frontier: set[str] = set()
             for row in rows:
                 neighbor = row["neighbor_event_id"]

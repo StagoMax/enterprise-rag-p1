@@ -1083,11 +1083,27 @@ class SagSqliteStore:
                 ),
             }
 
-    def load_entities(self) -> list[dict[str, object]]:
+    @staticmethod
+    def _normalized_namespaces(namespaces: Sequence[str]) -> tuple[str, ...]:
+        return tuple(dict.fromkeys(item.strip() for item in namespaces if item.strip()))
+
+    def load_entities(
+        self, allowed_namespaces: Sequence[str] = ()
+    ) -> list[dict[str, object]]:
+        namespaces = self._normalized_namespaces(allowed_namespaces)
         with self._connect() as connection:
-            if self._table_exists(connection, "source_asset_projection"):
+            has_projection = self._table_exists(connection, "source_asset_projection")
+            if namespaces and not has_projection:
+                return []
+            if has_projection:
+                namespace_filter = ""
+                params: list[str] = []
+                if namespaces:
+                    placeholders = ",".join("?" for _ in namespaces)
+                    namespace_filter = f" WHERE sa.namespace IN ({placeholders})"
+                    params.extend(namespaces)
                 rows = connection.execute(
-                    """SELECT DISTINCT entity.entity_id, entity.display_name,
+                    f"""SELECT DISTINCT entity.entity_id, entity.display_name,
                                       entity.entity_type, entity.vector
                        FROM entities entity
                        JOIN event_entities ee ON ee.entity_id=entity.entity_id
@@ -1096,7 +1112,10 @@ class SagSqliteStore:
                        WHERE eu.source_id IN (
                            SELECT sv.source_id FROM source_asset_projection sap
                            JOIN source_versions sv ON sv.version_id=sap.active_version_id
-                       )"""
+                           JOIN source_assets sa ON sa.asset_id=sap.asset_id
+                           {namespace_filter}
+                       )""",
+                    params,
                 ).fetchall()
             else:
                 rows = connection.execute(
@@ -1112,14 +1131,28 @@ class SagSqliteStore:
             for row in rows
         ]
 
-    def load_events(self) -> list[dict[str, object]]:
+    def load_events(
+        self, allowed_namespaces: Sequence[str] = ()
+    ) -> list[dict[str, object]]:
+        namespaces = self._normalized_namespaces(allowed_namespaces)
         with self._connect() as connection:
-            if self._table_exists(connection, "source_asset_projection"):
-                query = """
+            has_projection = self._table_exists(connection, "source_asset_projection")
+            if namespaces and not has_projection:
+                return []
+            params: list[str] = []
+            if has_projection:
+                namespace_filter = ""
+                if namespaces:
+                    placeholders = ",".join("?" for _ in namespaces)
+                    namespace_filter = f"WHERE sa.namespace IN ({placeholders})"
+                    params.extend(namespaces)
+                query = f"""
                     WITH selected_active_version AS (
                         SELECT sv.source_id, MIN(sv.version_id) AS version_id
                         FROM source_asset_projection sap
                         JOIN source_versions sv ON sv.version_id=sap.active_version_id
+                        JOIN source_assets sa ON sa.asset_id=sap.asset_id
+                        {namespace_filter}
                         GROUP BY sv.source_id
                     )
                     SELECT ev.event_id, ev.evidence_id, ev.event_text, ev.event_time,
@@ -1141,7 +1174,7 @@ class SagSqliteStore:
                     JOIN evidence_units eu ON eu.evidence_id=ev.evidence_id
                     JOIN sources s ON s.source_id=eu.source_id
                 """
-            rows = connection.execute(query).fetchall()
+            rows = connection.execute(query, params).fetchall()
         return [
             {
                 "event_id": row["event_id"],
@@ -1160,9 +1193,14 @@ class SagSqliteStore:
             for row in rows
         ]
 
-    def event_ids_for_entities(self, entity_ids: Sequence[str]) -> dict[str, list[str]]:
+    def event_ids_for_entities(
+        self,
+        entity_ids: Sequence[str],
+        allowed_namespaces: Sequence[str] = (),
+    ) -> dict[str, list[str]]:
         if not entity_ids:
             return {}
+        namespaces = self._normalized_namespaces(allowed_namespaces)
         placeholders = ",".join("?" for _ in entity_ids)
         query = f"""
             SELECT ee.event_id, ee.entity_id
@@ -1173,21 +1211,37 @@ class SagSqliteStore:
         """
         output: dict[str, list[str]] = {}
         with self._connect() as connection:
-            if self._table_exists(connection, "source_asset_projection"):
-                query += """ AND eu.source_id IN (
+            has_projection = self._table_exists(connection, "source_asset_projection")
+            if namespaces and not has_projection:
+                return {}
+            params = list(entity_ids)
+            if has_projection:
+                namespace_filter = ""
+                if namespaces:
+                    namespace_placeholders = ",".join("?" for _ in namespaces)
+                    namespace_filter = f" WHERE sa.namespace IN ({namespace_placeholders})"
+                    params.extend(namespaces)
+                query += f""" AND eu.source_id IN (
                     SELECT sv.source_id FROM source_asset_projection sap
                     JOIN source_versions sv ON sv.version_id=sap.active_version_id
+                    JOIN source_assets sa ON sa.asset_id=sap.asset_id
+                    {namespace_filter}
                 )"""
-            rows = connection.execute(query, list(entity_ids)).fetchall()
+            rows = connection.execute(query, params).fetchall()
         for row in rows:
             output.setdefault(row["event_id"], []).append(row["entity_id"])
         return output
 
-    def expand_events(self, event_ids: Sequence[str]) -> list[dict[str, str]]:
+    def expand_events(
+        self,
+        event_ids: Sequence[str],
+        allowed_namespaces: Sequence[str] = (),
+    ) -> list[dict[str, str]]:
         """Instantiate local hyperedges with SQL joins over shared entities."""
 
         if not event_ids:
             return []
+        namespaces = self._normalized_namespaces(allowed_namespaces)
         placeholders = ",".join("?" for _ in event_ids)
         query = f"""
             SELECT seed.event_id AS seed_event_id,
@@ -1205,12 +1259,23 @@ class SagSqliteStore:
             WHERE seed.event_id IN ({placeholders})
         """
         with self._connect() as connection:
-            if self._table_exists(connection, "source_asset_projection"):
-                query += """ AND neighbor_evidence.source_id IN (
+            has_projection = self._table_exists(connection, "source_asset_projection")
+            if namespaces and not has_projection:
+                return []
+            params = list(event_ids)
+            if has_projection:
+                namespace_filter = ""
+                if namespaces:
+                    namespace_placeholders = ",".join("?" for _ in namespaces)
+                    namespace_filter = f" WHERE sa.namespace IN ({namespace_placeholders})"
+                    params.extend(namespaces)
+                query += f""" AND neighbor_evidence.source_id IN (
                     SELECT sv.source_id FROM source_asset_projection sap
                     JOIN source_versions sv ON sv.version_id=sap.active_version_id
+                    JOIN source_assets sa ON sa.asset_id=sap.asset_id
+                    {namespace_filter}
                 )"""
-            rows = connection.execute(query, list(event_ids)).fetchall()
+            rows = connection.execute(query, params).fetchall()
         return [dict(row) for row in rows]
 
     def event_entities(self, event_ids: Sequence[str]) -> dict[str, list[dict[str, str]]]:
@@ -1241,23 +1306,42 @@ class SagSqliteStore:
         terms = list(dict.fromkeys(_FTS_TERM.findall(text.lower())))[:12]
         return " OR ".join(f'"{term.replace(chr(34), "")}"' for term in terms) or None
 
-    def search_event_fts(self, text: str, *, limit: int) -> list[str]:
+    def search_event_fts(
+        self,
+        text: str,
+        *,
+        limit: int,
+        allowed_namespaces: Sequence[str] = (),
+    ) -> list[str]:
         query = self._fts_query(text)
         if query is None:
             return []
+        namespaces = self._normalized_namespaces(allowed_namespaces)
         try:
             with self._connect() as connection:
-                if self._table_exists(connection, "source_asset_projection"):
+                has_projection = self._table_exists(connection, "source_asset_projection")
+                if namespaces and not has_projection:
+                    return []
+                if has_projection:
+                    namespace_filter = ""
+                    params: list[object] = [query]
+                    if namespaces:
+                        namespace_placeholders = ",".join("?" for _ in namespaces)
+                        namespace_filter = f" WHERE sa.namespace IN ({namespace_placeholders})"
+                        params.extend(namespaces)
+                    params.append(limit)
                     rows = connection.execute(
-                        """SELECT event_fts.event_id FROM event_fts
+                        f"""SELECT event_fts.event_id FROM event_fts
                            JOIN events ev ON ev.event_id=event_fts.event_id
                            JOIN evidence_units eu ON eu.evidence_id=ev.evidence_id
                            WHERE event_fts MATCH ? AND eu.source_id IN (
                                SELECT sv.source_id FROM source_asset_projection sap
                                JOIN source_versions sv ON sv.version_id=sap.active_version_id
+                               JOIN source_assets sa ON sa.asset_id=sap.asset_id
+                               {namespace_filter}
                            )
                            ORDER BY bm25(event_fts) LIMIT ?""",
-                        (query, limit),
+                        params,
                     ).fetchall()
                 else:
                     rows = connection.execute(

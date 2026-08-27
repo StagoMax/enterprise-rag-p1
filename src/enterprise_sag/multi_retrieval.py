@@ -227,7 +227,11 @@ class MultiRouteSagRetriever:
     ) -> MultiRouteSearchResult:
         plan = self._planner.plan(request)
         route_hits = {
-            need.need_id: self._route_retriever.search(need.query, top_k=self._route_top_k)
+            need.need_id: self._route_retriever.search(
+                need.query,
+                top_k=self._route_top_k,
+                allowed_namespaces=request.allowed_namespaces,
+            )
             for need in plan.needs
         }
         supports = self._coverage_judge.judge(plan, route_hits)
