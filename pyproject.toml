@@ -1,9 +1,17 @@
 [project]
 name = "enterprise-rag-p2"
 version = "0.2.0"
-description = "Enterprise workflow ACL-first Graph RAG P2 experiment"
+description = "ACL-first enterprise RAG, GraphRAG, and SAG research platform"
 readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.12"
+keywords = ["rag", "graphrag", "hybrid-search", "milvus", "enterprise-ai"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
   "fastapi>=0.115,<1",
   "httpx>=0.28,<1",
@@ -20,6 +28,11 @@ dependencies = [
 enterprise-graph-rag-panel = "enterprise_rag.main:main"
 enterprise-sag = "enterprise_sag.cli:main"
 enterprise-sag-panel = "enterprise_sag.panel:main"
+
+[project.urls]
+Documentation = "https://github.com/StagoMax/enterprise-rag-p1/tree/main/docs"
+Issues = "https://github.com/StagoMax/enterprise-rag-p1/issues"
+Repository = "https://github.com/StagoMax/enterprise-rag-p1"
 
 [project.optional-dependencies]
 models = [
