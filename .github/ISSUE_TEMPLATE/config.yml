@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 安全漏洞
+    url: https://github.com/StagoMax/enterprise-rag-p1/security/advisories/new
+    about: 请通过私有渠道报告安全问题。

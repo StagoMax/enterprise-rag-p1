@@ -1,0 +1,65 @@
+name: Bug report
+description: 报告可复现的缺陷或回归
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。安全漏洞请使用 Private Vulnerability Reporting，不要填写公开 Issue。
+  - type: textarea
+    id: summary
+    attributes:
+      label: 问题概述
+      description: 实际发生了什么？你原本期望什么？
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤
+      description: 请提供最小命令、输入与配置；删除所有密钥和私有数据。
+      placeholder: |
+        1. 执行 ...
+        2. 调用 ...
+        3. 观察到 ...
+    validations:
+      required: true
+  - type: input
+    id: revision
+    attributes:
+      label: 版本
+      description: Git commit SHA 或分支。
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 模块
+      options:
+        - Hybrid retrieval
+        - GraphRAG
+        - ACL / authentication
+        - Ingestion / parsing
+        - Evaluation
+        - SAG / temporal memory
+        - API / workbench
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: 环境与日志
+      description: 操作系统、Python、后端、相关日志。请先移除凭据与私有路径。
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已搜索现有 Issue。
+          required: true
+        - label: 此报告不包含凭据、个人信息或私有语料。
+          required: true
