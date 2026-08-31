@@ -61,6 +61,24 @@ def test_faster_latency_is_not_reported():
     assert notes == []
 
 
+def test_graph_gain_drop_is_informational_when_base_recall_improves():
+    base = report(
+        graph_target_recall_at_3=1.0,
+        graph_hybrid_target_recall_at_3=0.2,
+        graph_recall_gain=0.8,
+    )
+    candidate = report(
+        graph_target_recall_at_3=1.0,
+        graph_hybrid_target_recall_at_3=0.6,
+        graph_recall_gain=0.4,
+    )
+
+    regressions, notes = compare(base, candidate, 0.0)
+
+    assert regressions == []
+    assert any("graph_recall_gain" in note for note in notes)
+
+
 def test_new_metric_is_a_note_not_a_regression():
     base = report(route_accuracy=1.0)
     candidate = report(route_accuracy=1.0, ndcg_at_3=0.88)

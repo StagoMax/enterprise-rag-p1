@@ -19,6 +19,8 @@ uv run pytest -p no:cacheprovider
 ```bash
 uv run python scripts/evaluate_p2.py \
   --backend hashing \
+  --vector-backend memory \
+  --answer-generator extractive \
   --output reports/ci-hashing.json
 uv run python scripts/compare_reports.py \
   reports/p2-baseline-hashing.json \

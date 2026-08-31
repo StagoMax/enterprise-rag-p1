@@ -37,6 +37,8 @@ jobs:
         run: |
           uv run python scripts/evaluate_p2.py \
             --backend hashing \
+            --vector-backend memory \
+            --answer-generator extractive \
             --output reports/ci-hashing.json
 
       - name: Compare against committed hashing baseline
@@ -54,4 +56,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: evaluation-report
-          path: reports/ci-hashing.json
+          path: |
+            reports/ci-hashing.json
+            reports/ci-hashing.md

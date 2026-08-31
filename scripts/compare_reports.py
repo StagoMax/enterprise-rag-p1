@@ -16,8 +16,12 @@ from typing import Any
 LOWER_IS_BETTER = frozenset({"p50_latency_ms", "p95_latency_ms", "index_seconds"})
 
 # Timing is machine-dependent; a shared CI runner is not a stable basis for a
-# latency gate, so these are reported but never fail the build.
-INFORMATIONAL = frozenset({"p50_latency_ms", "p95_latency_ms", "index_seconds"})
+# latency gate. Graph gain is derived as graph recall minus the Hybrid-only
+# recall, so it can shrink when the Hybrid baseline improves even if Graph
+# quality is unchanged. The underlying recall metrics remain strict gates.
+INFORMATIONAL = frozenset(
+    {"p50_latency_ms", "p95_latency_ms", "index_seconds", "graph_recall_gain"}
+)
 
 
 def load(path: Path) -> dict[str, Any]:
