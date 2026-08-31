@@ -157,7 +157,8 @@ Planner、召回器、Judge 和 Fusion 完全相同，没有任何“自传”�
 
 ## 4. 当前真实构建结果
 
-数据源：`J:\Project\测试用个人信息数据库\自我记录相关 (1)`（包含子目录）。
+这组结果来自未纳入版本库的本地私有语料。公开仓库默认从 `data/sag_sources/` 读取；也可通过
+`enterprise-sag build --source-root <path>` 或 `SAG_SOURCE_ROOT` 指向其他目录。
 
 | 指标 | 结果 |
 | --- | ---: |

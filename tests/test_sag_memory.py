@@ -31,6 +31,17 @@ from enterprise_sag.store import (
 )
 
 
+def test_sag_source_root_is_portable_and_configurable(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.delenv("SAG_SOURCE_ROOT", raising=False)
+    assert SagSettings(_env_file=None).source_root == Path("data/sag_sources")
+    assert SagSettings(source_root=tmp_path, _env_file=None).source_root == tmp_path
+
+    monkeypatch.setenv("SAG_SOURCE_ROOT", str(tmp_path))
+    assert SagSettings(_env_file=None).source_root == tmp_path
+
+
 class _StaticChatModel:
     def __init__(self, response: str) -> None:
         self.response = response

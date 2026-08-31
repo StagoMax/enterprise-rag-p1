@@ -10,9 +10,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class SagSettings(BaseSettings):
     """Configuration for the isolated SAG projection; no Agent-loop settings live here."""
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
 
-    source_root: Path = Path(r"J:\Project\测试用个人信息数据库\自我记录相关 (1)")
+    source_root: Path = Field(
+        default=Path("data/sag_sources"),
+        validation_alias=AliasChoices("SAG_SOURCE_ROOT", "SOURCE_ROOT"),
+    )
     database_path: Path = Path("data/sag_memory/personal_memory.sqlite")
     asset_store_path: Path = Path("data/sag_memory/assets")
     preview_dir: Path = Path("data/sag_memory/previews")
